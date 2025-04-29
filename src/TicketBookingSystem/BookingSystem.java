@@ -3,24 +3,35 @@ package TicketBookingSystem;
 import java.util.Scanner;
 
 public class BookingSystem {
-    public static void start(Scanner sc) {
-        while (true) {
-            System.out.println("\nChoose mode of transportation:");
-            System.out.println("1. Plane\n2. Train\n3. Bus\n4. Logout");
-            System.out.print("Enter choice: ");
-            int option = sc.nextInt();
-            sc.nextLine();
+    private Plane plane;
+    private Train train;
+    private Bus bus;
 
-            switch (option) {
-                case 1 -> new PlaneBooking().book(sc);
-                case 2 -> new TrainBooking().book(sc);
-                case 3 -> new BusBooking().book(sc);
-                case 4 -> {
-                    System.out.println("Logging out...");
-                    return;
-                }
-                default -> System.out.println("Invalid option.");
-            }
+    public BookingSystem() {
+        plane = new Plane();
+        train = new Train();
+        bus = new Bus();
+    }
+
+    public void startBooking(Scanner sc) {
+        System.out.println("\nSelect Mode of Transportation:");
+        System.out.println("1. Plane\n2. Train\n3. Bus");
+        System.out.print("Enter choice: ");
+        int choice = sc.nextInt();
+        sc.nextLine();
+
+        switch (choice) {
+            case 1:
+                plane.book(sc);
+                break;
+            case 2:
+                train.book(sc);
+                break;
+            case 3:
+                bus.book(sc);
+                break;
+            default:
+                System.out.println("Invalid option.");
         }
     }
 }

@@ -3,21 +3,24 @@ package TicketBookingSystem;
 import java.util.HashMap;
 import java.util.Scanner;
 
-public class UserService {
-    private final HashMap<String, String> users = new HashMap<>();
+public class UserManager {
+    private HashMap<String, String> users;
+
+    public UserManager() {
+        users = new HashMap<>();
+    }
 
     public void register(Scanner sc) {
         System.out.print("Enter username: ");
         String username = sc.nextLine();
+        if (users.containsKey(username)) {
+            System.out.println("Username already exists. Try logging in.");
+            return;
+        }
         System.out.print("Enter password: ");
         String password = sc.nextLine();
-
-        if (users.containsKey(username)) {
-            System.out.println("User already exists!");
-        } else {
-            users.put(username, password);
-            System.out.println("Registered successfully!");
-        }
+        users.put(username, password);
+        System.out.println("Registration successful.");
     }
 
     public boolean login(Scanner sc) {
@@ -25,12 +28,11 @@ public class UserService {
         String username = sc.nextLine();
         System.out.print("Enter password: ");
         String password = sc.nextLine();
-
         if (users.containsKey(username) && users.get(username).equals(password)) {
-            System.out.println("Login successful!");
+            System.out.println("Login successful.");
             return true;
         } else {
-            System.out.println("Invalid credentials.");
+            System.out.println("Invalid credentials. Try again.");
             return false;
         }
     }
