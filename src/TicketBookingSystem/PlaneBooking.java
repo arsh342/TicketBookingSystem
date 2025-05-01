@@ -90,66 +90,14 @@ public class PlaneBooking {
         System.out.println("\033[31mX\033[0m - Reserved");
     }
 
-    public void book(Scanner sc, String username) {
-        bookSeat(sc, username);
-        displaySeats();
-    }
-
-    private void bookSeat(Scanner sc, String username) {
-        Utils.displayCities();
-        System.out.print("\033[1mEnter starting city number: \033[0m");
-        int startChoice = sc.nextInt();
-        sc.nextLine();
-        System.out.print("\033[1mEnter destination city number: \033[0m");
-        int destChoice = sc.nextInt();
-        sc.nextLine();
-
-        if (startChoice < 1 || startChoice > Utils.CITIES.length || destChoice < 1 || destChoice > Utils.CITIES.length) {
-            System.out.println("\033[1;31mInvalid city selection.\033[0m");
-            return;
-        }
-
-        startCity = Utils.CITIES[startChoice - 1];
-        destCity = Utils.CITIES[destChoice - 1];
-        if (startCity.equals(destCity)) {
-            System.out.println("\033[1;31mStarting and destination cities cannot be the same.\033[0m");
-            return;
-        }
-
-        int distance = Utils.getDistance(startCity, destCity);
-        if (distance == -1) {
-            System.out.println("\033[1;31mRoute not available.\033[0m");
-            return;
-        }
-
-        routePrice = Utils.calculatePrice("Plane", distance);
-        System.out.println("\033[1mRoute: \033[0m" + startCity + " to " + destCity + " (\033[1;33m" + distance + " km\033[0m)");
-
-        System.out.println("\n\033[1;36mChoose Seat Class:\033[0m");
-        System.out.println("\033[1;33m1.\033[0m Economy (Base Price: Rs. " + routePrice + ")");
-        System.out.println("\033[1;33m2.\033[0m Business (Base Price: Rs. " + (routePrice * 2) + ")");
-        System.out.println("\033[1;33m3.\033[0m First (Base Price: Rs. " + (routePrice * 3) + ")");
-        System.out.print("\033[1mEnter choice: \033[0m");
-        int classChoice = sc.nextInt();
-        sc.nextLine();
-
-        String seatClass;
-        switch (classChoice) {
-            case 1:
-                seatClass = "Economy";
-                break;
-            case 2:
-                seatClass = "Business";
-                break;
-            case 3:
-                seatClass = "First";
-                break;
-            default:
-                System.out.println("\033[1;31mInvalid class selected.\033[0m");
-                return;
-        }
+    public void book(Scanner sc, String username, String startCity, String destCity, double routePrice, String seatClass) {
+        this.startCity = startCity;
+        this.destCity = destCity;
+        this.routePrice = routePrice;
 
         initializeSeats(seatClass, routePrice);
+        System.out.println("\033[1mTicket Price (per seat): Rs. \033[32m" +
+                (routePrice * (seatClass.equals("First") ? 3.0 : seatClass.equals("Business") ? 2.0 : 1.0)) + "\033[0m");
         displaySeats();
 
         System.out.println("\n\033[1;33mExample: To book Row 2 Seat C, enter: 2 C\033[0m");
@@ -185,6 +133,7 @@ public class PlaneBooking {
         String bookingId = "P" + bookingSystem.getNextBookingId("P");
         bookings.put(bookingId, new Booking(username, startCity, destCity, selectedSeat.getPrice(), seatClass, selectedSeat));
         System.out.println("\033[1;32mBooking successful! Booking ID: " + bookingId + ", Total payable: Rs. " + selectedSeat.getPrice() + "\033[0m");
+        displaySeats();
     }
 
     public void displayUserBookings(String username) {

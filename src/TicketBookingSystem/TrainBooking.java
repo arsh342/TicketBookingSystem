@@ -66,76 +66,18 @@ public class TrainBooking {
         System.out.println("\033[31mX\033[0m - Reserved");
     }
 
-    public void book(Scanner sc, String username) {
-        System.out.println("\n\033[1;36m--- Train Booking (Train ID: " + trainId + ") ---\033[0m");
-
-        Utils.displayCities();
-        System.out.print("\033[1mEnter starting city number: \033[0m");
-        int startChoice = sc.nextInt();
-        sc.nextLine();
-        System.out.print("\033[1mEnter destination city number: \033[0m");
-        int destChoice = sc.nextInt();
-        sc.nextLine();
-
-        if (startChoice < 1 || startChoice > Utils.CITIES.length || destChoice < 1 || destChoice > Utils.CITIES.length) {
-            System.out.println("\033[1;31mInvalid city selection.\033[0m");
-            return;
-        }
-
-        startCity = Utils.CITIES[startChoice - 1];
-        destCity = Utils.CITIES[destChoice - 1];
-        if (startCity.equals(destCity)) {
-            System.out.println("\033[1;31mStarting and destination cities cannot be the same.\033[0m");
-            return;
-        }
-
-        int distance = Utils.getDistance(startCity, destCity);
-        if (distance == -1) {
-            System.out.println("\033[1;31mRoute not available.\033[0m");
-            return;
-        }
-
-        routePrice = Utils.calculatePrice("Train", distance);
-        System.out.println("\033[1mRoute: \033[0m" + startCity + " to " + destCity + " (\033[1;33m" + distance + " km\033[0m)");
-
-        System.out.println("\n\033[1;36mChoose Class:\033[0m");
-        System.out.println("\033[1;33m1.\033[0m AC First Class (1A) - Rs. " + (routePrice * 2.5));
-        System.out.println("\033[1;33m2.\033[0m Second AC (2A) - Rs. " + (routePrice * 2.0));
-        System.out.println("\033[1;33m3.\033[0m Third AC (3A) - Rs. " + (routePrice * 1.5));
-        System.out.println("\033[1;33m4.\033[0m Sleeper Class (SL) - Rs. " + routePrice);
-        System.out.println("\033[1;33m5.\033[0m Chair Car (CC) - Rs. " + (routePrice * 0.8));
-        System.out.println("\033[1;33m6.\033[0m Second Seater (2S) - Rs. " + (routePrice * 0.5));
-        System.out.print("\033[1mEnter choice: \033[0m");
-        int classChoice = sc.nextInt();
-        sc.nextLine();
-
-        String seatClass;
-        switch (classChoice) {
-            case 1:
-                seatClass = "AC First Class (1A)";
-                break;
-            case 2:
-                seatClass = "Second AC (2A)";
-                break;
-            case 3:
-                seatClass = "Third AC (3A)";
-                break;
-            case 4:
-                seatClass = "Sleeper Class (SL)";
-                break;
-            case 5:
-                seatClass = "Chair Car (CC)";
-                break;
-            case 6:
-                seatClass = "Second Seater (2S)";
-                break;
-            default:
-                System.out.println("\033[1;31mInvalid class selected.\033[0m");
-                return;
-        }
+    public void book(Scanner sc, String username, String startCity, String destCity, double routePrice, String seatClass) {
+        this.startCity = startCity;
+        this.destCity = destCity;
+        this.routePrice = routePrice;
 
         initTrainSeats(seatClass, routePrice);
-        System.out.println("\033[1mTicket Price (per seat): Rs. \033[32m" + (routePrice * (seatClass.equals("AC First Class (1A)") ? 2.5 : seatClass.equals("Second AC (2A)") ? 2.0 : seatClass.equals("Third AC (3A)") ? 1.5 : seatClass.equals("Sleeper Class (SL)") ? 1.0 : seatClass.equals("Chair Car (CC)") ? 0.8 : 0.5)) + "\033[0m");
+        System.out.println("\033[1mTicket Price (per seat): Rs. \033[32m" +
+                (routePrice * (seatClass.equals("AC First Class (1A)") ? 2.5 :
+                        seatClass.equals("Second AC (2A)") ? 2.0 :
+                                seatClass.equals("Third AC (3A)") ? 1.5 :
+                                        seatClass.equals("Sleeper Class (SL)") ? 1.0 :
+                                                seatClass.equals("Chair Car (CC)") ? 0.8 : 0.5)) + "\033[0m");
         displaySeats();
 
         System.out.println("\n\033[1;33mExample: To book Row 3 Seat B, enter: 3 B\033[0m");

@@ -54,42 +54,13 @@ public class BusBooking {
         System.out.println("\033[31mX\033[0m - Reserved");
     }
 
-    public void book(Scanner sc, String username) {
-        bookSeat(sc, username);
-    }
-
-    private void bookSeat(Scanner sc, String username) {
-        Utils.displayCities();
-        System.out.print("\033[1mEnter starting city number: \033[0m");
-        int startChoice = sc.nextInt();
-        sc.nextLine();
-        System.out.print("\033[1mEnter destination city number: \033[0m");
-        int destChoice = sc.nextInt();
-        sc.nextLine();
-
-        if (startChoice < 1 || startChoice > Utils.CITIES.length || destChoice < 1 || destChoice > Utils.CITIES.length) {
-            System.out.println("\033[1;31mInvalid city selection.\033[0m");
-            return;
-        }
-
-        startCity = Utils.CITIES[startChoice - 1];
-        destCity = Utils.CITIES[destChoice - 1];
-        if (startCity.equals(destCity)) {
-            System.out.println("\033[1;31mStarting and destination cities cannot be the same.\033[0m");
-            return;
-        }
-
-        int distance = Utils.getDistance(startCity, destCity);
-        if (distance == -1) {
-            System.out.println("\033[1;31mRoute not available.\033[0m");
-            return;
-        }
-
-        routePrice = Utils.calculatePrice("Bus", distance);
-        System.out.println("\033[1mRoute: \033[0m" + startCity + " to " + destCity + " (\033[1;33m" + distance + " km\033[0m)");
-        System.out.println("\033[1mBase Price: Rs. \033[32m" + routePrice + "\033[0m");
+    public void book(Scanner sc, String username, String startCity, String destCity, double routePrice, String seatClass) {
+        this.startCity = startCity;
+        this.destCity = destCity;
+        this.routePrice = routePrice;
 
         initializeSeats(routePrice);
+        System.out.println("\033[1mTicket Price (per seat): Rs. \033[32m" + routePrice + "\033[0m");
         displaySeats();
 
         System.out.println("\n\033[1;33mExample: To book Seat Row 5 Column B, enter: 5 B\033[0m");
@@ -125,6 +96,7 @@ public class BusBooking {
         String bookingId = "B" + bookingSystem.getNextBookingId("B");
         bookings.put(bookingId, new Booking(username, startCity, destCity, selectedSeat.getPrice(), "Standard", selectedSeat));
         System.out.println("\033[1;32mBooking successful! Booking ID: " + bookingId + ", Total payable: Rs. " + selectedSeat.getPrice() + "\033[0m");
+        displaySeats();
     }
 
     public void displayUserBookings(String username) {
