@@ -63,8 +63,8 @@ public class StorageManager {
                 Map<String, Object[]> planeBookings = getBookingsMap(plane);
                 for (var entry : planeBookings.entrySet()) {
                     Object[] booking = entry.getValue();
-                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s",
-                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], plane.getFlightId()));
+                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
+                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], plane.getFlightId(), booking[7]));
                     writer.newLine();
                 }
             }
@@ -74,8 +74,8 @@ public class StorageManager {
                 Map<String, Object[]> trainBookings = getBookingsMap(train);
                 for (var entry : trainBookings.entrySet()) {
                     Object[] booking = entry.getValue();
-                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s",
-                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], train.getTrainId()));
+                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
+                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], train.getTrainId(), booking[7]));
                     writer.newLine();
                 }
             }
@@ -85,8 +85,8 @@ public class StorageManager {
                 Map<String, Object[]> busBookings = getBookingsMap(bus);
                 for (var entry : busBookings.entrySet()) {
                     Object[] booking = entry.getValue();
-                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s",
-                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], bus.getBusId()));
+                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
+                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], bus.getBusId(), booking[7]));
                     writer.newLine();
                 }
             }
@@ -111,7 +111,8 @@ public class StorageManager {
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(":");
-                if (parts.length != 9) continue; // Skip malformed entries
+                // Handle both old format (9 parts) and new format (10 parts with travelDate)
+                if (parts.length != 9 && parts.length != 10) continue; // Skip malformed entries
 
                 String bookingId = parts[0];
                 String username = parts[1];
@@ -122,6 +123,7 @@ public class StorageManager {
                 int row = Integer.parseInt(parts[6]);
                 String col = parts[7];
                 String vehicleId = parts[8];
+                String travelDate = (parts.length == 10) ? parts[9] : "N/A"; // Default to "N/A" for old format
 
                 String transportType = bookingId.startsWith("P") ? "Plane" : bookingId.startsWith("T") ? "Train" : "Bus";
                 Seat seat = new Seat(row, col, seatClass, transportType, price);
@@ -133,7 +135,7 @@ public class StorageManager {
                             .findFirst()
                             .orElse(null);
                     if (targetPlane != null) {
-                        targetPlane.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat);
+                        targetPlane.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
                     }
                 } else if (bookingId.startsWith("T")) {
                     TrainBooking targetTrain = trains.stream()
@@ -141,7 +143,7 @@ public class StorageManager {
                             .findFirst()
                             .orElse(null);
                     if (targetTrain != null) {
-                        targetTrain.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat);
+                        targetTrain.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
                     }
                 } else if (bookingId.startsWith("B")) {
                     BusBooking targetBus = buses.stream()
@@ -149,7 +151,7 @@ public class StorageManager {
                             .findFirst()
                             .orElse(null);
                     if (targetBus != null) {
-                        targetBus.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat);
+                        targetBus.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
                     }
                 }
             }
@@ -185,8 +187,8 @@ public class StorageManager {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(BOOKINGS_FILE))) {
             for (var entry : allBookings.entrySet()) {
                 Object[] booking = entry.getValue();
-                writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s",
-                        entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], booking[7]));
+                writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
+                        entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], booking[7], booking[8]));
                 writer.newLine();
             }
             System.out.println("\033[1;32mBooking removed and file updated successfully.\033[0m");
@@ -221,8 +223,9 @@ public class StorageManager {
             double price = (double) invokeMethod(booking, "getPrice");
             String seatClass = (String) invokeMethod(booking, "getSeatClass");
             Seat seat = (Seat) invokeMethod(booking, "getSeat");
+            String travelDate = (String) invokeMethod(booking, "getTravelDate");
 
-            bookingMap.put(bookingId, new Object[]{username, startCity, destCity, price, seatClass, seat.getRow(), seat.getColumn(), vehicleId});
+            bookingMap.put(bookingId, new Object[]{username, startCity, destCity, price, seatClass, seat.getRow(), seat.getColumn(), vehicleId, travelDate});
         }
         return bookingMap;
     }

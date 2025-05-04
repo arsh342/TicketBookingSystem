@@ -54,7 +54,7 @@ public class BusBooking {
         System.out.println("\033[31mX\033[0m - Reserved");
     }
 
-    public void book(Scanner sc, String username, String startCity, String destCity, double routePrice, String seatClass) {
+    public void book(Scanner sc, String username, String startCity, String destCity, double routePrice, String seatClass, String travelDate) {
         this.startCity = startCity;
         this.destCity = destCity;
         this.routePrice = routePrice;
@@ -94,7 +94,7 @@ public class BusBooking {
         selectedSeat.reserve();
 
         String bookingId = "B" + bookingSystem.getNextBookingId("B");
-        bookings.put(bookingId, new Booking(username, startCity, destCity, selectedSeat.getPrice(), "Standard", selectedSeat));
+        bookings.put(bookingId, new Booking(username, startCity, destCity, selectedSeat.getPrice(), "Standard", selectedSeat, travelDate));
         System.out.println("\033[1;32mBooking successful! Booking ID: " + bookingId + ", Total payable: Rs. " + selectedSeat.getPrice() + "\033[0m");
         displaySeats();
     }
@@ -109,6 +109,7 @@ public class BusBooking {
                 System.out.println("\033[1;34mBooking ID: \033[0m" + entry.getKey() +
                         " \033[1m| Route: \033[0m" + booking.getStartCity() + " to " + booking.getDestCity() +
                         " \033[1m| Class: \033[0m" + booking.getSeatClass() +
+                        " \033[1m| Travel Date: \033[0m" + booking.getTravelDate() +
                         " \033[1m| Price: Rs. \033[32m" + booking.getPrice() + "\033[0m" +
                         " \033[1m| Seat: \033[0m" + booking.getSeat().toString());
             }
@@ -128,8 +129,12 @@ public class BusBooking {
         }
     }
 
+    public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate) {
+        bookings.put(bookingId, new Booking(username, startCity, destCity, price, seatClass, seat, travelDate));
+    }
+
     public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat) {
-        bookings.put(bookingId, new Booking(username, startCity, destCity, price, seatClass, seat));
+        bookings.put(bookingId, new Booking(username, startCity, destCity, price, seatClass, seat, "N/A"));
     }
 
     public Map<String, Booking> getBookings() {
@@ -159,14 +164,16 @@ public class BusBooking {
         private final double price;
         private final String seatClass;
         private final Seat seat;
+        private final String travelDate;
 
-        public Booking(String username, String startCity, String destCity, double price, String seatClass, Seat seat) {
+        public Booking(String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate) {
             this.username = username;
             this.startCity = startCity;
             this.destCity = destCity;
             this.price = price;
             this.seatClass = seatClass;
             this.seat = seat;
+            this.travelDate = travelDate;
         }
 
         public String getUsername() { return username; }
@@ -175,5 +182,6 @@ public class BusBooking {
         public double getPrice() { return price; }
         public String getSeatClass() { return seatClass; }
         public Seat getSeat() { return seat; }
+        public String getTravelDate() { return travelDate; }
     }
 }

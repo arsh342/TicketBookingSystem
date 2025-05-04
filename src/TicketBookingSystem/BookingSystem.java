@@ -2,6 +2,7 @@ package TicketBookingSystem;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
@@ -11,6 +12,7 @@ public class BookingSystem {
     private List<BusBooking> buses;
     private String loggedInUser;
     private int bookingIdCounter = 1;
+    private static final Random random = new Random();
 
     public BookingSystem() {
         planes = new ArrayList<>();
@@ -121,16 +123,20 @@ public class BookingSystem {
 
             String startCity = route[0];
             String destCity = route[1];
-            int distance = Utils.getDistance(startCity, destCity);
-            if (distance == -1) {
-                System.out.println("\033[1;31mRoute between " + startCity + " and " + destCity + " not available.\033[0m");
-                Utils.pause(sc);
-                continue;
-            }
-            double routePrice = Utils.calculatePrice("Plane", distance);
+            int distance = generateRandomDistance();
+            double routePrice = generateRandomPrice(distance, "Plane");
             System.out.println("\033[1mRoute: \033[0m" + startCity + " to " + destCity + " (\033[1;33m" + distance + " km\033[0m)");
             String eta = calculateETA(distance, "Plane");
             System.out.println("\033[1mEstimated Time of Arrival: \033[32m" + eta + "\033[0m");
+
+            // Prompt for travel date
+            System.out.print("\033[1mEnter travel date (DD-MM-YYYY): \033[0m");
+            String travelDate = sc.nextLine();
+            if (travelDate.trim().isEmpty()) {
+                System.out.println("\033[1;31mTravel date cannot be empty.\033[0m");
+                Utils.pause(sc);
+                continue;
+            }
 
             // Select class
             System.out.println("\n\033[1;36mChoose Seat Class:\033[0m");
@@ -190,7 +196,20 @@ public class BookingSystem {
                     System.out.println("\033[1;31mInvalid flight selection.\033[0m");
                     continue;
                 }
-                availablePlanes.get(flightChoice - 1).book(sc, loggedInUser, startCity, destCity, routePrice, seatClass);
+
+                PlaneBooking selectedPlane = availablePlanes.get(flightChoice - 1);
+
+                // Prompt for number of seats
+                System.out.print("\033[1mHow many seats would you like to book (1-10)? \033[0m");
+                int numSeats = sc.nextInt();
+                sc.nextLine();
+                if (numSeats < 1 || numSeats > 10) {
+                    System.out.println("\033[1;31mPlease select between 1 and 10 seats.\033[0m");
+                    continue;
+                }
+
+                // For now, call book with the current signature (we'll update PlaneBooking later)
+                selectedPlane.book(sc, loggedInUser, startCity, destCity, routePrice, seatClass, travelDate);
                 return;
             } catch (Exception e) {
                 System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m");
@@ -208,16 +227,20 @@ public class BookingSystem {
 
             String startCity = route[0];
             String destCity = route[1];
-            int distance = Utils.getDistance(startCity, destCity);
-            if (distance == -1) {
-                System.out.println("\033[1;31mRoute between " + startCity + " and " + destCity + " not available.\033[0m");
-                Utils.pause(sc);
-                continue;
-            }
-            double routePrice = Utils.calculatePrice("Train", distance);
+            int distance = generateRandomDistance();
+            double routePrice = generateRandomPrice(distance, "Train");
             System.out.println("\033[1mRoute: \033[0m" + startCity + " to " + destCity + " (\033[1;33m" + distance + " km\033[0m)");
             String eta = calculateETA(distance, "Train");
             System.out.println("\033[1mEstimated Time of Arrival: \033[32m" + eta + "\033[0m");
+
+            // Prompt for travel date
+            System.out.print("\033[1mEnter travel date (DD-MM-YYYY): \033[0m");
+            String travelDate = sc.nextLine();
+            if (travelDate.trim().isEmpty()) {
+                System.out.println("\033[1;31mTravel date cannot be empty.\033[0m");
+                Utils.pause(sc);
+                continue;
+            }
 
             // Select class
             System.out.println("\n\033[1;36mChoose Class:\033[0m");
@@ -289,7 +312,20 @@ public class BookingSystem {
                     System.out.println("\033[1;31mInvalid train selection.\033[0m");
                     continue;
                 }
-                availableTrains.get(trainChoice - 1).book(sc, loggedInUser, startCity, destCity, routePrice, seatClass);
+
+                TrainBooking selectedTrain = availableTrains.get(trainChoice - 1);
+
+                // Prompt for number of seats
+                System.out.print("\033[1mHow many seats would you like to book (1-10)? \033[0m");
+                int numSeats = sc.nextInt();
+                sc.nextLine();
+                if (numSeats < 1 || numSeats > 10) {
+                    System.out.println("\033[1;31mPlease select between 1 and 10 seats.\033[0m");
+                    continue;
+                }
+
+                // For now, call book with the current signature (we'll update TrainBooking later)
+                selectedTrain.book(sc, loggedInUser, startCity, destCity, routePrice, seatClass, travelDate);
                 return;
             } catch (Exception e) {
                 System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m");
@@ -307,16 +343,20 @@ public class BookingSystem {
 
             String startCity = route[0];
             String destCity = route[1];
-            int distance = Utils.getDistance(startCity, destCity);
-            if (distance == -1) {
-                System.out.println("\033[1;31mRoute between " + startCity + " and " + destCity + " not available.\033[0m");
-                Utils.pause(sc);
-                continue;
-            }
-            double routePrice = Utils.calculatePrice("Bus", distance);
+            int distance = generateRandomDistance();
+            double routePrice = generateRandomPrice(distance, "Bus");
             System.out.println("\033[1mRoute: \033[0m" + startCity + " to " + destCity + " (\033[1;33m" + distance + " km\033[0m)");
             String eta = calculateETA(distance, "Bus");
             System.out.println("\033[1mEstimated Time of Arrival: \033[32m" + eta + "\033[0m");
+
+            // Prompt for travel date
+            System.out.print("\033[1mEnter travel date (DD-MM-YYYY): \033[0m");
+            String travelDate = sc.nextLine();
+            if (travelDate.trim().isEmpty()) {
+                System.out.println("\033[1;31mTravel date cannot be empty.\033[0m");
+                Utils.pause(sc);
+                continue;
+            }
 
             // Select class (only Standard for bus)
             System.out.println("\n\033[1;36mChoose Class:\033[0m");
@@ -364,7 +404,20 @@ public class BookingSystem {
                     System.out.println("\033[1;31mInvalid bus selection.\033[0m");
                     continue;
                 }
-                availableBuses.get(busChoice - 1).book(sc, loggedInUser, startCity, destCity, routePrice, seatClass);
+
+                BusBooking selectedBus = availableBuses.get(busChoice - 1);
+
+                // Prompt for number of seats
+                System.out.print("\033[1mHow many seats would you like to book (1-10)? \033[0m");
+                int numSeats = sc.nextInt();
+                sc.nextLine();
+                if (numSeats < 1 || numSeats > 10) {
+                    System.out.println("\033[1;31mPlease select between 1 and 10 seats.\033[0m");
+                    continue;
+                }
+
+                // For now, call book with the current signature (we'll update BusBooking later)
+                selectedBus.book(sc, loggedInUser, startCity, destCity, routePrice, seatClass, travelDate);
                 return;
             } catch (Exception e) {
                 System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m");
@@ -396,6 +449,20 @@ public class BookingSystem {
         }
 
         return new String[]{startCity, destCity};
+    }
+
+    private int generateRandomDistance() {
+        return random.nextInt(1000) + 100; // Random distance between 100 and 1100 km
+    }
+
+    private double generateRandomPrice(int distance, String transportType) {
+        double basePricePerKm = switch (transportType) {
+            case "Plane" -> 0.5;  // $0.50/km
+            case "Train" -> 0.1;  // $0.10/km
+            case "Bus" -> 0.05;   // $0.05/km
+            default -> 0.1;
+        };
+        return distance * basePricePerKm * (random.nextDouble() * 0.5 + 0.75); // Random price with 75-125% variation
     }
 
     private void viewBookings(Scanner sc) {
