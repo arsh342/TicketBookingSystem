@@ -8,15 +8,15 @@ import java.util.Scanner;
 public class TrainBooking {
     // Seats list for the current booking transaction
     private final CustomLinkedList<Seat> seats = new CustomLinkedList<>();
-    // Persistent storage of bookings for this train
+    // Persistent storage of bookings for this train object
     private Map<String, Booking> bookings = new HashMap<>();
 
-    private final String trainId;
-    private final BookingSystem bookingSystem; // Reference to the main system
+    private final String trainId; // Generic ID for this train booking manager object
+    private final BookingSystem bookingSystem;
 
     /**
      * Constructor for TrainBooking.
-     * @param trainId The unique ID for this train instance.
+     * @param trainId The unique ID for this train instance/slot.
      * @param bookingSystem Reference to the main booking system.
      */
     public TrainBooking(String trainId, BookingSystem bookingSystem) {
@@ -34,7 +34,7 @@ public class TrainBooking {
         seats.clear();
         // Simplified layout - real layouts vary greatly
         int rows = 10;
-        char[] columns = {'A', 'B', 'C', 'D', 'E'};
+        char[] columns = {'A', 'B', 'C', 'D', 'E'}; // Example 5 columns
         for (int r = 1; r <= rows; r++) {
             for (char c : columns) {
                 seats.add(new Seat(r, String.valueOf(c), seatClass, "Train", finalSeatPrice));
@@ -65,21 +65,21 @@ public class TrainBooking {
         System.out.println("\n" + Utils.CYAN_BOLD + "Train Seat Layout - " + seatClass + " (Train ID: " + trainId + ")" + Utils.RESET);
         System.out.println(Utils.GREY + "(Layout based on simplified 5-column view)" + Utils.RESET);
 
-        // Determine last column for header
-        char firstCol = seats.getHead().data.getColumn().charAt(0);
-        char lastCol = firstCol;
-        CustomLinkedList.Node<Seat> node = seats.getHead();
-        while(node.next != null && node.data.getRow() == seats.getHead().data.getRow()) {
-            lastCol = node.next.data.getColumn().charAt(0);
-            node = node.next;
-        }
-
+        // Determine columns for header
+        char firstCol = ' '; char lastCol = ' ';
+        if (!seats.isEmpty()) {
+            firstCol = seats.getHead().data.getColumn().charAt(0); lastCol = firstCol;
+            CustomLinkedList.Node<Seat> node = seats.getHead();
+            while(node.next != null && node.data.getRow() == seats.getHead().data.getRow()) {
+                lastCol = node.next.data.getColumn().charAt(0); node = node.next;
+            }
+        } else { return; }
 
         // Print Column Headers
-        System.out.print("     "); // Space for "Row XX:"
+        System.out.print("     ");
         for (char c = firstCol; c <= lastCol; c++) {
             System.out.print(Utils.YELLOW_BOLD + " " + c + " " + Utils.RESET);
-            if (c == 'C') System.out.print("   "); // Assume aisle after C in header
+            if (c == 'C') System.out.print("   "); // Aisle after C
         }
         System.out.println();
 
@@ -95,26 +95,37 @@ public class TrainBooking {
                 currentRow = seat.getRow();
             }
             rowDisplay.append(" ").append(seat.toString());
-            if (seat.getColumn().equalsIgnoreCase("C")) rowDisplay.append("  "); // Aisle after C
+            if (seat.getColumn().equalsIgnoreCase("C")) rowDisplay.append("  "); // Aisle
             temp = temp.next;
         }
         if (!rowDisplay.isEmpty()) System.out.println(rowDisplay);
 
-        // Print Legend
+        // Legend
         System.out.println("\n" + Utils.BLUE_BOLD + "Seat Legend:" + Utils.RESET);
         System.out.println(" " + Utils.GREEN + "O" + Utils.RESET + "(RowCol) - Available");
         System.out.println(" " + Utils.RED + "X" + Utils.RESET + "(RowCol) - Reserved");
     }
 
-    /** Handles booking a seat with input validation. */
-    public void book(Scanner sc, String username, String startCity, String destCity, double finalSeatPrice, String seatClass, String travelDate) {
+    /**
+     * Handles booking a seat with input validation, storing the selected provider.
+     * @param sc Scanner
+     * @param username User
+     * @param startCity Origin
+     * @param destCity Destination
+     * @param finalSeatPrice Price for this class
+     * @param seatClass Selected class
+     * @param travelDate Date string
+     * @param selectedProvider Specific train service selected
+     */
+    public void book(Scanner sc, String username, String startCity, String destCity, double finalSeatPrice, String seatClass, String travelDate, String selectedProvider) {
         initializeSeats(seatClass, finalSeatPrice);
         if (seats.isEmpty()) {
             System.out.println(Utils.RED + "Failed to initialize seats for class: " + seatClass + "." + Utils.RESET);
             return;
         }
 
-        System.out.printf("\n" + Utils.BLUE_BOLD + "Ticket Price (" + Utils.CYAN + "%s" + Utils.BLUE_BOLD + ", per seat): Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", seatClass, finalSeatPrice);
+        System.out.printf("\n" + Utils.BLUE_BOLD + "Booking for Service: " + Utils.CYAN + "%s" + Utils.RESET + "\n", selectedProvider);
+        System.out.printf(Utils.BLUE_BOLD + "Ticket Price (" + Utils.CYAN + "%s" + Utils.BLUE_BOLD + ", per seat): Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", seatClass, finalSeatPrice);
         displaySeats();
 
         Seat selectedSeat = null;
@@ -139,7 +150,7 @@ public class TrainBooking {
             } else { System.out.println(Utils.RED + "Invalid format. Use row and column (e.g., 3 B)." + Utils.RESET); }
         }
 
-        // Get Passenger Details using Utils for validation
+        // Get Passenger Details
         System.out.printf(Utils.BLUE + "\nSelected Seat: " + Utils.MAGENTA_BOLD + "%s" + Utils.BLUE + ", Price: Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", selectedSeat.getSeatId(), selectedSeat.getPrice());
         String name = "";
         while (name.isEmpty()) {
@@ -155,7 +166,7 @@ public class TrainBooking {
         selectedSeat.reserve();
         String bookingId = "T" + bookingSystem.getNextBookingId("T");
         String mapKey = bookingId.toUpperCase();
-        Booking newBooking = new Booking(username, startCity, destCity, selectedSeat.getPrice(), seatClass, selectedSeat, travelDate);
+        Booking newBooking = new Booking(username, startCity, destCity, selectedSeat.getPrice(), seatClass, selectedSeat, travelDate, selectedProvider); // Pass provider
         bookings.put(mapKey, newBooking);
 
         // Confirmation Message
@@ -163,7 +174,7 @@ public class TrainBooking {
         System.out.println("       Booking Successful!          ");
         System.out.println("========================================" + Utils.RESET);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.YELLOW_BOLD + "%s\n" + Utils.RESET, "Booking ID", bookingId);
-        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Train ID", this.trainId);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Service", selectedProvider); // Show selected provider
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%s\n" + Utils.RESET, "Passenger", name);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%d\n" + Utils.RESET, "Age", age);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%s\n" + Utils.RESET, "Gender", gender);
@@ -177,20 +188,20 @@ public class TrainBooking {
         displaySeats();
     }
 
-    /** Displays user's bookings with formatting and colors. */
+    /** Displays user's bookings with formatting and colors, including provider. */
     public boolean displayUserBookings(String username) {
         boolean hasBookings = false;
-        String header = String.format("\n" + Utils.CYAN_BOLD + "--- Train Bookings for " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + " (Train ID: " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + ") ---" + Utils.RESET, username, this.trainId);
-        String columns = String.format(Utils.BLUE_BOLD + "%-10s | %-20s | %-20s | %-11s | %-10s | %s" + Utils.RESET, "Booking ID", "Route", "Class", "Travel Date", "Price", "Seat");
-        String separator = Utils.CYAN + "-----------+----------------------+----------------------+-------------+------------+------" + Utils.RESET;
+        String header = String.format("\n" + Utils.CYAN_BOLD + "--- Train Bookings for " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + " (Associated Train Obj: " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + ") ---" + Utils.RESET, username, this.trainId);
+        String columns = String.format(Utils.BLUE_BOLD + "%-10s | %-20s | %-25s | %-11s | %-10s | %-8s | %s" + Utils.RESET, "Booking ID", "Route", "Service/Provider", "Travel Date", "Price", "Seat", "Class");
+        String separator = Utils.CYAN + "-----------+----------------------+---------------------------+-------------+------------+----------+---------------------" + Utils.RESET; // Adjust length
         StringBuilder output = new StringBuilder();
 
         for (Map.Entry<String, Booking> entry : bookings.entrySet()) {
             Booking booking = entry.getValue();
             if (booking.getUsername().equals(username)) {
                 if (!hasBookings) { output.append(header).append("\n").append(columns).append("\n").append(separator).append("\n"); hasBookings = true; }
-                output.append(String.format(Utils.YELLOW_BOLD + "%-10s" + Utils.RESET + " | " + Utils.MAGENTA + "%-20s" + Utils.RESET + " | " + Utils.MAGENTA + "%-20s" + Utils.RESET + " | " + Utils.MAGENTA + "%-11s" + Utils.RESET + " | " + Utils.GREEN_BOLD + "Rs. %-7.2f" + Utils.RESET + " | " + Utils.YELLOW_BOLD + "%s" + Utils.RESET + "\n",
-                        entry.getKey(), booking.getStartCity() + "->" + booking.getDestCity(), booking.getSeatClass(), booking.getTravelDate(), booking.getPrice(), booking.getSeat().getSeatId()));
+                output.append(String.format(Utils.YELLOW_BOLD + "%-10s" + Utils.RESET + " | " + Utils.MAGENTA + "%-20s" + Utils.RESET + " | " + Utils.CYAN + "%-25.25s" + Utils.RESET + " | " + Utils.MAGENTA + "%-11s" + Utils.RESET + " | " + Utils.GREEN_BOLD + "Rs. %-7.2f" + Utils.RESET + " | " + Utils.YELLOW_BOLD + "%-8s" + Utils.RESET + " | " + Utils.MAGENTA + "%s" + Utils.RESET + "\n",
+                        entry.getKey(), booking.getStartCity() + "->" + booking.getDestCity(), booking.getProvider(), booking.getTravelDate(), booking.getPrice(), booking.getSeat().getSeatId(), booking.getSeatClass()));
             }
         }
         if (hasBookings) System.out.println(output);
@@ -212,14 +223,14 @@ public class TrainBooking {
         } else { return false; }
     }
 
-    /** Adds a booking (used by StorageManager). */
-    public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate) {
+    /** Adds a booking (used by StorageManager), includes provider. */
+    public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate, String provider) {
         seat.reserve();
-        Booking loadedBooking = new Booking(username, startCity, destCity, price, seatClass, seat, travelDate);
+        Booking loadedBooking = new Booking(username, startCity, destCity, price, seatClass, seat, travelDate, provider);
         bookings.put(bookingId.toUpperCase(), loadedBooking);
     }
 
-    /** Gets the map of bookings. */
+    /** Gets the map of bookings associated with this train object. */
     public Map<String, Booking> getBookings() { return bookings; }
 
     /** Finds a seat in the current layout list. */
@@ -233,12 +244,12 @@ public class TrainBooking {
         return null;
     }
 
-    /** Gets the train ID. */
+    /** Gets the generic train ID for this object. */
     public String getTrainId() { return trainId; }
 
-    /** Inner Booking class (package-private). */
-    static class Booking { // Changed from private static
-        // Fields and constructor...
+    /** Inner Booking class (package-private). Stores booking details including the provider. */
+    static class Booking { // Package-private
+        // Fields (username, startCity, destCity, price, seatClass, seat, travelDate, provider)
         private final String username;
         private final String startCity;
         private final String destCity;
@@ -246,13 +257,16 @@ public class TrainBooking {
         private final String seatClass;
         private final Seat seat;
         private final String travelDate;
+        private final String provider; // <-- ADDED
 
-        public Booking(String u, String s, String d, double p, String sc, Seat se, String td) {
+        // Constructor (includes provider)
+        public Booking(String u, String s, String d, double p, String sc, Seat se, String td, String prov) {
             this.username = u; this.startCity = s; this.destCity = d;
             this.price = p; this.seatClass = sc; this.seat = se;
             this.travelDate = td != null ? td : "N/A";
+            this.provider = prov != null ? prov : "N/A"; // <-- STORED
         }
-        // Getters...
+        // Getters (including getProvider)
         public String getUsername() { return username; }
         public String getStartCity() { return startCity; }
         public String getDestCity() { return destCity; }
@@ -260,5 +274,6 @@ public class TrainBooking {
         public String getSeatClass() { return seatClass; }
         public Seat getSeat() { return seat; }
         public String getTravelDate() { return travelDate; }
+        public String getProvider() { return provider; } // <-- ADDED GETTER
     }
 }

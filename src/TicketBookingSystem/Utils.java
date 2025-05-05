@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 import java.util.Set;
+// Removed HashMap import - no longer needed after removing distance map
 
 public class Utils {
 
@@ -36,11 +37,15 @@ public class Utils {
 
     // --- Other Constants ---
     private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("dd-MM-uuuu")
-                    .withResolverStyle(ResolverStyle.STRICT);
+            DateTimeFormatter.ofPattern("dd-MM-uuuu") // Use uuuu for year to avoid confusion with week-based year 'yyyy'
+                    .withResolverStyle(ResolverStyle.STRICT); // Ensures dates like 31-02-2025 are rejected
+
+    // Valid Gender Options (Checked case-insensitively)
     private static final Set<String> VALID_GENDERS = new HashSet<>(Arrays.asList(
             "MALE", "FEMALE", "OTHER", "M", "F", "O"
     ));
+
+    // Base price per kilometer (Remains useful for calculating base fare)
     private static final double PLANE_PRICE_PER_KM = 5.0;
     private static final double TRAIN_PRICE_PER_KM = 1.0;
     private static final double BUS_PRICE_PER_KM = 0.5;
@@ -48,54 +53,86 @@ public class Utils {
 
     // --- Utility Methods ---
 
+    /**
+     * Pauses execution until the user presses Enter.
+     * @param sc Scanner instance.
+     */
     public static void pause(Scanner sc) {
-        System.out.print("\n" + YELLOW + "Press Enter to continue..." + RESET); // Yellow prompt
-        sc.nextLine();
+        System.out.print("\n" + YELLOW + "Press Enter to continue..." + RESET);
+        sc.nextLine(); // Wait for Enter
     }
 
+    /**
+     * Clears the console screen using ANSI codes.
+     * Note: May not work in all environments (like some IDE consoles).
+     */
     public static void clearScreen() {
         System.out.print("\033[H\033[2J");
         System.out.flush();
     }
 
-    // isValidRowColumn remains the same (validation logic)
+    /**
+     * Validates if input matches a basic row/column format (e.g., "5 B").
+     * @param input User input string.
+     * @return true if format is potentially valid, false otherwise.
+     */
     public static boolean isValidRowColumn(String input) {
         if (input == null || input.trim().isEmpty()) return false;
+        // Allows one or more digits, whitespace, one or more letters
         return input.trim().matches("\\d+\\s+[A-Za-z]+");
     }
 
     /**
-     * Prints a more prominent banner with borders.
-     * @param title The title text.
+     * Prints a styled banner with borders.
+     * @param title The text for the banner.
      */
     public static void printBanner(String title) {
         int titleLength = title.length();
-        String border = CYAN_BOLD + "=".repeat(titleLength + 6) + RESET; // Dynamic border length
+        // Ensure minimum length for aesthetics
+        int borderLength = Math.max(titleLength + 6, 20);
+        String border = CYAN_BOLD + "=".repeat(borderLength) + RESET;
+        // Center title approximately
+        int paddingTotal = borderLength - titleLength - 4; // 4 for "||  ||"
+        int paddingLeft = paddingTotal / 2;
+        int paddingRight = paddingTotal - paddingLeft;
+        String titleLine = String.format("%s||%s%s%s%s%s||%s",
+                CYAN_BOLD, " ".repeat(paddingLeft), WHITE_BOLD, title, RESET, " ".repeat(paddingRight), CYAN_BOLD);
+
         System.out.println("\n" + border);
-        System.out.println(CYAN_BOLD + "|| " + WHITE_BOLD + title + CYAN_BOLD + " ||" + RESET);
+        System.out.println(titleLine);
         System.out.println(border);
     }
 
-    // calculatePrice remains the same (calculation logic)
+    /**
+     * Calculates base ticket price from distance and transport type.
+     * Distance now comes from RouteDataManager.
+     * @param transportType "Plane", "Train", or "Bus".
+     * @param distance Distance in km (should be >= 0).
+     * @return Calculated base price, or 0.0 if input is invalid.
+     */
     public static double calculatePrice(String transportType, int distance) {
         if (distance < 0) {
             System.err.println(RED_BOLD + "Warning:" + RESET + RED + " calculatePrice called with negative distance: " + distance + RESET);
-            return 0.0;
+            return 0.0; // Invalid distance
         }
         double pricePerKm;
-        switch (transportType.toLowerCase()) {
+        switch (transportType.toLowerCase()) { // Case-insensitive match
             case "plane": pricePerKm = PLANE_PRICE_PER_KM; break;
             case "train": pricePerKm = TRAIN_PRICE_PER_KM; break;
             case "bus": pricePerKm = BUS_PRICE_PER_KM; break;
             default:
                 System.err.println(RED_BOLD + "Warning:" + RESET + RED + " calculatePrice called with unknown transport type: " + transportType + RESET);
-                pricePerKm = 0.0;
+                pricePerKm = 0.0; // Unknown type
         }
         return pricePerKm * distance;
     }
 
-    // --- Input Validation Methods (using colors) ---
-
+    /**
+     * Prompts for and validates travel date (DD-MM-YYYY, future date).
+     * Allows user to type 'back'.
+     * @param sc Scanner instance.
+     * @return Valid date string or null if user types 'back'.
+     */
     public static String getValidTravelDate(Scanner sc) {
         LocalDate travelDate = null;
         LocalDate today = LocalDate.now();
@@ -105,12 +142,13 @@ public class Utils {
         while (travelDate == null) {
             System.out.print(prompt);
             inputDateStr = sc.nextLine().trim();
-            if (inputDateStr.equalsIgnoreCase("back")) return null;
+            if (inputDateStr.equalsIgnoreCase("back")) return null; // Allow cancellation
+
             try {
                 travelDate = LocalDate.parse(inputDateStr, DATE_FORMATTER);
                 if (travelDate.isBefore(today)) {
                     System.out.println(RED + "Travel date cannot be in the past. Please enter today or a future date." + RESET);
-                    travelDate = null;
+                    travelDate = null; // Reset to loop again
                 }
             } catch (DateTimeParseException e) {
                 System.out.println(RED + "Invalid date or format. Example: " + YELLOW + today.format(DATE_FORMATTER) + RESET);
@@ -118,9 +156,14 @@ public class Utils {
                 System.out.println(RED + "Error parsing date: " + e.getMessage() + RESET);
             }
         }
-        return inputDateStr;
+        return inputDateStr; // Return the validated original string
     }
 
+    /**
+     * Prompts for and validates passenger age (0-120).
+     * @param sc Scanner instance.
+     * @return Valid integer age.
+     */
     public static int getValidAge(Scanner sc) {
         int age = -1;
         String prompt = WHITE_BOLD + "Enter age (" + YELLOW_BOLD + "0-120" + WHITE_BOLD + "): " + RESET;
@@ -128,45 +171,56 @@ public class Utils {
             System.out.print(prompt);
             try {
                 age = sc.nextInt();
-                sc.nextLine();
-                if (age < 0 || age > 120) {
+                sc.nextLine(); // Consume newline
+                if (age < 0 || age > 120) { // Validate range
                     System.out.println(RED + "Invalid age. Please enter an age between 0 and 120." + RESET);
-                    age = -1;
+                    age = -1; // Reset to loop
                 }
             } catch (InputMismatchException e) {
                 System.out.println(RED + "Invalid input. Please enter a number for age." + RESET);
-                sc.nextLine();
-                age = -1;
+                sc.nextLine(); // Consume invalid input
+                age = -1; // Ensure loop continues
             } catch (Exception e) {
                 System.out.println(RED + "Error reading age: " + e.getMessage() + RESET);
-                age = -1;
+                age = -1; // Ensure loop continues
             }
         }
         return age;
     }
 
+    /**
+     * Prompts for and validates passenger gender against allowed options.
+     * Returns standardized full gender name.
+     * @param sc Scanner instance.
+     * @return Validated, standardized gender string ("Male", "Female", "Other").
+     */
     public static String getValidGender(Scanner sc) {
-        String gender = "";
+        String genderInput = "";
+        String standardizedGender = "";
         boolean isValid = false;
         String prompt = WHITE_BOLD + "Enter gender (" + YELLOW_BOLD + "Male/Female/Other" + WHITE_BOLD + " or " + YELLOW_BOLD + "M/F/O" + WHITE_BOLD + "): " + RESET;
+
         while (!isValid) {
             System.out.print(prompt);
-            gender = sc.nextLine().trim();
-            if (gender.isEmpty()) {
+            genderInput = sc.nextLine().trim();
+            String upperCaseInput = genderInput.toUpperCase();
+
+            if (genderInput.isEmpty()) {
                 System.out.println(RED + "Gender cannot be empty." + RESET);
-            } else if (VALID_GENDERS.contains(gender.toUpperCase())) {
+            } else if (VALID_GENDERS.contains(upperCaseInput)) {
                 isValid = true;
+                // Standardize to full word
+                switch(upperCaseInput) {
+                    case "M": standardizedGender = "Male"; break;
+                    case "F": standardizedGender = "Female"; break;
+                    case "O": standardizedGender = "Other"; break;
+                    default: standardizedGender = genderInput; // Assume full word was entered correctly
+                }
             } else {
                 System.out.println(RED + "Invalid input. Please use Male, Female, Other, M, F, or O." + RESET);
             }
         }
-        // Standardize output to full words for better display later
-        switch(gender.toUpperCase()) {
-            case "M": return "Male";
-            case "F": return "Female";
-            case "O": return "Other";
-            default: return gender; // Return original valid input if already full word (e.g. "Male")
-        }
+        return standardizedGender;
     }
 
-}
+} // End of Utils class

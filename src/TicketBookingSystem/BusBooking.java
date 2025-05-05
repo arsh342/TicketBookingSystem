@@ -6,21 +6,21 @@ import java.util.Map;
 import java.util.Scanner;
 
 public class BusBooking {
-    // Define layout constants
+    // Layout constants
     private static final int BUS_ROWS = 10;
-    private static final char[] BUS_COLUMNS = {'A', 'B', 'C', 'D'}; // Example 2+2 layout
+    private static final char[] BUS_COLUMNS = {'A', 'B', 'C', 'D'};
 
-    // Seats list for the current booking transaction
+    // Seats list for the current transaction
     private final CustomLinkedList<Seat> seats = new CustomLinkedList<>();
-    // Persistent storage of bookings for this bus
+    // Persistent storage of bookings for this bus object
     private Map<String, Booking> bookings = new HashMap<>();
 
-    private final String busId;
-    private final BookingSystem bookingSystem; // Reference to the main system
+    private final String busId; // Generic ID for this bus booking manager object
+    private final BookingSystem bookingSystem;
 
     /**
      * Constructor for BusBooking.
-     * @param busId The unique ID for this bus instance.
+     * @param busId The unique ID for this bus instance/slot.
      * @param bookingSystem Reference to the main booking system.
      */
     public BusBooking(String busId, BookingSystem bookingSystem) {
@@ -30,12 +30,12 @@ public class BusBooking {
     }
 
     /**
-     * Initializes seat layout for a bus (always "Standard" class).
+     * Initializes seat layout (always "Standard" class).
      * @param seatClass Ignored, always uses "Standard".
      * @param finalSeatPrice The price for a standard bus seat.
      */
     private void initializeSeats(String seatClass, double finalSeatPrice) {
-        // Ignore passed seatClass, use "Standard"
+        // Enforce "Standard" class for layout generation
         seatClass = "Standard";
         seats.clear();
         for (int i = 1; i <= BUS_ROWS; i++) {
@@ -48,8 +48,8 @@ public class BusBooking {
 
     /** Marks seats as reserved based on the loaded bookings map. */
     private void markExistingBookings(String seatClass) {
+        // Class check might be redundant but kept for consistency
         for (Booking booked : this.bookings.values()) {
-            // Bus booking class should always be Standard, but check anyway
             if (booked.getSeatClass().equalsIgnoreCase(seatClass)) {
                 Seat seatInLayout = findSeat(booked.getSeat().getRow(), booked.getSeat().getColumn());
                 if (seatInLayout != null && !seatInLayout.isReserved()) {
@@ -69,15 +69,14 @@ public class BusBooking {
         System.out.println("\n" + Utils.CYAN_BOLD + "Bus Seating Layout - " + seatClass + " (Bus ID: " + busId + ")" + Utils.RESET);
         System.out.println(Utils.GREY + "(Layout based on simplified 2-2 configuration view)" + Utils.RESET);
 
-        // Determine last column for header
-        char firstCol = BUS_COLUMNS[0];
-        char lastCol = BUS_COLUMNS[BUS_COLUMNS.length - 1];
+        // Determine columns
+        char firstCol = BUS_COLUMNS[0]; char lastCol = BUS_COLUMNS[BUS_COLUMNS.length - 1];
 
         // Print Column Headers
-        System.out.print("     "); // Space for "Row XX:"
+        System.out.print("     ");
         for (char c = firstCol; c <= lastCol; c++) {
             System.out.print(Utils.YELLOW_BOLD + " " + c + " " + Utils.RESET);
-            if (c == 'B') System.out.print("   "); // Assume aisle after B in header
+            if (c == 'B') System.out.print("   "); // Aisle after B
         }
         System.out.println();
 
@@ -93,27 +92,38 @@ public class BusBooking {
                 currentRow = seat.getRow();
             }
             rowDisplay.append(" ").append(seat.toString());
-            if (seat.getColumn().equalsIgnoreCase("B")) rowDisplay.append("  "); // Aisle after B
+            if (seat.getColumn().equalsIgnoreCase("B")) rowDisplay.append("  "); // Aisle
             temp = temp.next;
         }
         if (!rowDisplay.isEmpty()) System.out.println(rowDisplay);
 
-        // Print Legend
+        // Legend
         System.out.println("\n" + Utils.BLUE_BOLD + "Seat Legend:" + Utils.RESET);
         System.out.println(" " + Utils.GREEN + "O" + Utils.RESET + "(RowCol) - Available");
         System.out.println(" " + Utils.RED + "X" + Utils.RESET + "(RowCol) - Reserved");
     }
 
-    /** Handles booking a seat with input validation. */
-    public void book(Scanner sc, String username, String startCity, String destCity, double finalSeatPrice, String seatClass, String travelDate) {
-        // Ensure class is "Standard" for bus, use the finalSeatPrice directly
+    /**
+     * Handles booking a seat with input validation, storing the selected provider.
+     * @param sc Scanner
+     * @param username User
+     * @param startCity Origin
+     * @param destCity Destination
+     * @param finalSeatPrice Price for the bus seat.
+     * @param seatClass Should be "Standard".
+     * @param travelDate Date string
+     * @param selectedProvider Specific bus operator/service selected
+     */
+    public void book(Scanner sc, String username, String startCity, String destCity, double finalSeatPrice, String seatClass, String travelDate, String selectedProvider) {
+        // Enforce Standard class, use finalSeatPrice directly
         initializeSeats("Standard", finalSeatPrice);
         if (seats.isEmpty()) {
             System.out.println(Utils.RED + "Failed to initialize bus seats." + Utils.RESET);
             return;
         }
 
-        System.out.printf("\n" + Utils.BLUE_BOLD + "Ticket Price (" + Utils.CYAN + "Standard" + Utils.BLUE_BOLD + ", per seat): Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", finalSeatPrice);
+        System.out.printf("\n" + Utils.BLUE_BOLD + "Booking for Service: " + Utils.CYAN + "%s" + Utils.RESET + "\n", selectedProvider);
+        System.out.printf(Utils.BLUE_BOLD + "Ticket Price (" + Utils.CYAN + "Standard" + Utils.BLUE_BOLD + ", per seat): Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", finalSeatPrice);
         displaySeats();
 
         Seat selectedSeat = null;
@@ -131,14 +141,14 @@ public class BusBooking {
                     Seat potentialSeat = findSeat(row, col);
                     if (potentialSeat == null) { System.out.println(Utils.RED + "Seat " + row + col + " not found." + Utils.RESET); }
                     else if (potentialSeat.isReserved()) { System.out.println(Utils.RED + "Seat " + potentialSeat.getSeatId() + " is reserved." + Utils.RESET); }
-                    // No class check needed for bus as it's always Standard
+                    // No class check needed
                     else { selectedSeat = potentialSeat; }
                 } catch (NumberFormatException e) { System.out.println(Utils.RED + "Invalid row number format." + Utils.RESET); }
                 catch (Exception e) { System.out.println(Utils.RED + "Invalid input: " + e.getMessage() + Utils.RESET); }
             } else { System.out.println(Utils.RED + "Invalid format. Use row and column (e.g., 5 B)." + Utils.RESET); }
         }
 
-        // Get Passenger Details using Utils for validation
+        // Get Passenger Details
         System.out.printf(Utils.BLUE + "\nSelected Seat: " + Utils.MAGENTA_BOLD + "%s" + Utils.BLUE + ", Price: Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", selectedSeat.getSeatId(), selectedSeat.getPrice());
         String name = "";
         while (name.isEmpty()) {
@@ -154,8 +164,8 @@ public class BusBooking {
         selectedSeat.reserve();
         String bookingId = "B" + bookingSystem.getNextBookingId("B");
         String mapKey = bookingId.toUpperCase();
-        // Use "Standard" explicitly when creating Booking object
-        Booking newBooking = new Booking(username, startCity, destCity, selectedSeat.getPrice(), "Standard", selectedSeat, travelDate);
+        // Use "Standard" explicitly for class, pass selected provider
+        Booking newBooking = new Booking(username, startCity, destCity, selectedSeat.getPrice(), "Standard", selectedSeat, travelDate, selectedProvider);
         bookings.put(mapKey, newBooking);
 
         // Confirmation Message
@@ -163,12 +173,12 @@ public class BusBooking {
         System.out.println("       Booking Successful!          ");
         System.out.println("========================================" + Utils.RESET);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.YELLOW_BOLD + "%s\n" + Utils.RESET, "Booking ID", bookingId);
-        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Bus ID", this.busId);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Service", selectedProvider); // Show provider
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%s\n" + Utils.RESET, "Passenger", name);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%d\n" + Utils.RESET, "Age", age);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%s\n" + Utils.RESET, "Gender", gender);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s -> %s\n" + Utils.RESET, "Route", startCity, destCity);
-        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "Standard\n" + Utils.RESET, "Class"); // Bus is always Standard
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "Standard\n" + Utils.RESET, "Class");
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.YELLOW_BOLD + "%s\n" + Utils.RESET, "Seat", selectedSeat.getSeatId());
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Travel Date", travelDate);
         System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.GREEN_BOLD + "Rs. %.2f\n" + Utils.RESET, "Total Paid", selectedSeat.getPrice());
@@ -177,20 +187,20 @@ public class BusBooking {
         displaySeats();
     }
 
-    /** Displays user's bookings with formatting and colors. */
+    /** Displays user's bookings with formatting and colors, including provider. */
     public boolean displayUserBookings(String username) {
         boolean hasBookings = false;
-        String header = String.format("\n" + Utils.CYAN_BOLD + "--- Bus Bookings for " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + " (Bus ID: " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + ") ---" + Utils.RESET, username, this.busId);
-        String columns = String.format(Utils.BLUE_BOLD + "%-10s | %-20s | %-10s | %-11s | %-10s | %s" + Utils.RESET, "Booking ID", "Route", "Class", "Travel Date", "Price", "Seat");
-        String separator = Utils.CYAN + "-----------+----------------------+------------+-------------+------------+------" + Utils.RESET;
+        String header = String.format("\n" + Utils.CYAN_BOLD + "--- Bus Bookings for " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + " (Associated Bus Obj: " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + ") ---" + Utils.RESET, username, this.busId);
+        String columns = String.format(Utils.BLUE_BOLD + "%-10s | %-20s | %-25s | %-11s | %-10s | %-8s | %s" + Utils.RESET, "Booking ID", "Route", "Service/Provider", "Travel Date", "Price", "Seat", "Class");
+        String separator = Utils.CYAN + "-----------+----------------------+---------------------------+-------------+------------+----------+---------------------" + Utils.RESET;
         StringBuilder output = new StringBuilder();
 
         for (Map.Entry<String, Booking> entry : bookings.entrySet()) {
             Booking booking = entry.getValue();
             if (booking.getUsername().equals(username)) {
                 if (!hasBookings) { output.append(header).append("\n").append(columns).append("\n").append(separator).append("\n"); hasBookings = true; }
-                output.append(String.format(Utils.YELLOW_BOLD + "%-10s" + Utils.RESET + " | " + Utils.MAGENTA + "%-20s" + Utils.RESET + " | " + Utils.MAGENTA + "%-10s" + Utils.RESET + " | " + Utils.MAGENTA + "%-11s" + Utils.RESET + " | " + Utils.GREEN_BOLD + "Rs. %-7.2f" + Utils.RESET + " | " + Utils.YELLOW_BOLD + "%s" + Utils.RESET + "\n",
-                        entry.getKey(), booking.getStartCity() + "->" + booking.getDestCity(), booking.getSeatClass(), booking.getTravelDate(), booking.getPrice(), booking.getSeat().getSeatId()));
+                output.append(String.format(Utils.YELLOW_BOLD + "%-10s" + Utils.RESET + " | " + Utils.MAGENTA + "%-20s" + Utils.RESET + " | " + Utils.CYAN + "%-25.25s" + Utils.RESET + " | " + Utils.MAGENTA + "%-11s" + Utils.RESET + " | " + Utils.GREEN_BOLD + "Rs. %-7.2f" + Utils.RESET + " | " + Utils.YELLOW_BOLD + "%-8s" + Utils.RESET + " | " + Utils.MAGENTA + "%s" + Utils.RESET + "\n",
+                        entry.getKey(), booking.getStartCity() + "->" + booking.getDestCity(), booking.getProvider(), booking.getTravelDate(), booking.getPrice(), booking.getSeat().getSeatId(), booking.getSeatClass()));
             }
         }
         if (hasBookings) System.out.println(output);
@@ -212,15 +222,15 @@ public class BusBooking {
         } else { return false; }
     }
 
-    /** Adds a booking (used by StorageManager). Ensures class is "Standard". */
-    public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate) {
+    /** Adds a booking (used by StorageManager), includes provider. Enforces Standard class. */
+    public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate, String provider) {
         seat.reserve();
-        // Ensure seatClass is "Standard" when loading bus booking
-        Booking loadedBooking = new Booking(username, startCity, destCity, price, "Standard", seat, travelDate);
+        // Ensure class is "Standard" regardless of what was saved (for consistency)
+        Booking loadedBooking = new Booking(username, startCity, destCity, price, "Standard", seat, travelDate, provider);
         bookings.put(bookingId.toUpperCase(), loadedBooking);
     }
 
-    /** Gets the map of bookings. */
+    /** Gets the map of bookings associated with this bus object. */
     public Map<String, Booking> getBookings() { return bookings; }
 
     /** Finds a seat in the current layout list. */
@@ -234,12 +244,12 @@ public class BusBooking {
         return null;
     }
 
-    /** Gets the bus ID. */
+    /** Gets the generic bus ID for this object. */
     public String getBusId() { return busId; }
 
-    /** Inner Booking class (package-private). Enforces "Standard" class. */
-    static class Booking { // Changed from private static
-        // Fields and constructor...
+    /** Inner Booking class (package-private). Stores booking details including the provider. */
+    static class Booking { // Package-private
+        // Fields (username, startCity, destCity, price, seatClass, seat, travelDate, provider)
         private final String username;
         private final String startCity;
         private final String destCity;
@@ -247,14 +257,17 @@ public class BusBooking {
         private final String seatClass; // Always "Standard"
         private final Seat seat;
         private final String travelDate;
+        private final String provider; // <-- ADDED
 
-        public Booking(String u, String s, String d, double p, String sc, Seat se, String td) {
+        // Constructor (includes provider, enforces Standard class)
+        public Booking(String u, String s, String d, double p, String sc, Seat se, String td, String prov) {
             this.username = u; this.startCity = s; this.destCity = d;
             this.price = p; this.seatClass = "Standard"; // Enforce Standard for Bus
             this.seat = se;
             this.travelDate = td != null ? td : "N/A";
+            this.provider = prov != null ? prov : "N/A"; // <-- STORED
         }
-        // Getters...
+        // Getters (including getProvider)
         public String getUsername() { return username; }
         public String getStartCity() { return startCity; }
         public String getDestCity() { return destCity; }
@@ -262,5 +275,6 @@ public class BusBooking {
         public String getSeatClass() { return seatClass; } // Always returns "Standard"
         public Seat getSeat() { return seat; }
         public String getTravelDate() { return travelDate; }
+        public String getProvider() { return provider; } // <-- ADDED GETTER
     }
 }

@@ -7,191 +7,140 @@ import java.util.Map;
 
 /**
  * Handles saving and loading user credentials and booking data to/from files
- * for persistence across application sessions.
+ * for persistence across application sessions. Uses updated format with Provider.
  */
 public class StorageManager {
-    // Constants for filenames
     private static final String USER_FILE = "users.txt";
     private static final String BOOKINGS_FILE = "bookings.txt";
-    // Define the delimiter used in the bookings file
-    private static final String DELIMITER = ":";
+    private static final String DELIMITER = ":"; // File delimiter
 
-    /**
-     * Saves user credentials (username:hashed_password) to the user file.
-     * Uses try-with-resources for safe file handling.
-     *
-     * @param users HashMap containing username-password pairs.
-     */
+    /** Saves user credentials. */
     public static void saveUsers(HashMap<String, String> users) {
-        System.out.println("\033[0;90mSaving user data...\033[0m"); // Debug message
+        // Use try-with-resources for automatic closing
+        System.out.println(Utils.GREY + "Saving user data..." + Utils.RESET);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
-            for (Map.Entry<String, String> entry : users.entrySet()) {
-                // Simple format: username:hashedPassword
-                writer.write(entry.getKey() + DELIMITER + entry.getValue());
-                writer.newLine();
+            if (users != null) { // Add null check
+                for (Map.Entry<String, String> entry : users.entrySet()) {
+                    writer.write(entry.getKey() + DELIMITER + entry.getValue());
+                    writer.newLine();
+                }
             }
-            System.out.println("\033[1;32mUser data saved successfully to " + USER_FILE + ".\033[0m");
+            System.out.println(Utils.GREEN + "User data saved successfully to " + USER_FILE + "." + Utils.RESET);
         } catch (IOException e) {
-            System.err.println("\033[1;31mError saving user data to " + USER_FILE + ": " + e.getMessage() + "\033[0m");
+            System.err.println(Utils.RED_BOLD + "Error saving user data to " + USER_FILE + ": " + Utils.RESET + Utils.RED + e.getMessage() + Utils.RESET);
+        } catch (NullPointerException e) {
+            System.err.println(Utils.RED_BOLD + "Error: User map provided for saving was null." + Utils.RESET);
         }
     }
 
-    /**
-     * Loads user credentials from the user file.
-     * Handles file not found scenarios gracefully.
-     * Uses try-with-resources.
-     *
-     * @return HashMap containing loaded username-password pairs.
-     */
+    /** Loads user credentials. */
     public static HashMap<String, String> loadUsers() {
         HashMap<String, String> users = new HashMap<>();
         File file = new File(USER_FILE);
-
         if (!file.exists()) {
-            System.out.println("\033[1;33mUser data file (" + USER_FILE + ") not found. Starting with no users.\033[0m");
-            return users; // Return empty map
+            System.out.println(Utils.YELLOW + "User data file (" + USER_FILE + ") not found. Starting fresh." + Utils.RESET);
+            return users;
         }
 
-        System.out.println("\033[0;90mLoading user data from " + USER_FILE + "...\033[0m");
+        System.out.println(Utils.GREY + "Loading user data from " + USER_FILE + "..." + Utils.RESET);
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            int lineNumber = 0;
+            String line; int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
-                if (line.trim().isEmpty() || line.startsWith("#")) continue; // Skip empty/comment lines
-
-                String[] parts = line.split(DELIMITER, 2); // Split only on the first delimiter
-                if (parts.length == 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
-                    users.put(parts[0], parts[1]); // username, hashedPassword
-                } else {
-                    System.err.println("\033[1;33mWarning: Skipping malformed line #" + lineNumber + " in " + USER_FILE + ": " + line + "\033[0m");
-                }
+                if (line.trim().isEmpty() || line.startsWith("#")) continue;
+                String[] parts = line.split(DELIMITER, 2); // Split only on first delimiter
+                if (parts.length == 2 && !parts[0].trim().isEmpty() && !parts[1].trim().isEmpty()) {
+                    users.put(parts[0], parts[1]);
+                } else { System.err.println(Utils.YELLOW_BOLD + "Warning:" + Utils.YELLOW + " Skipping malformed line #" + lineNumber + " in " + USER_FILE + Utils.RESET); }
             }
-            System.out.println("\033[1;32mUser data loaded successfully.\033[0m");
-        } catch (IOException e) {
-            System.err.println("\033[1;31mError loading user data from " + USER_FILE + ": " + e.getMessage() + "\033[0m");
-        }
+            System.out.println(Utils.GREEN + "User data loaded successfully ("+users.size()+" users)." + Utils.RESET);
+        } catch (IOException e) { System.err.println(Utils.RED_BOLD + "Error loading user data: " + Utils.RESET + Utils.RED + e.getMessage() + Utils.RESET); }
         return users;
     }
 
     /**
-     * Saves all current bookings from Plane, Train, and Bus objects to the bookings file.
-     * Uses a consistent format:
-     * BookingID:Username:StartCity:DestCity:Price:SeatClass:SeatRow:SeatCol:VehicleID:TravelDate
-     *
-     * @param planes List of PlaneBooking objects.
-     * @param trains List of TrainBooking objects.
-     * @param buses List of BusBooking objects.
+     * Saves all bookings using the updated format including the provider.
+     * Format: BookingID:Username:Start:Dest:Price:SeatClass:Row:Col:VehicleID:Date:Provider
      */
     public static void saveBookings(List<PlaneBooking> planes, List<TrainBooking> trains, List<BusBooking> buses) {
-        System.out.println("\033[0;90mSaving bookings data...\033[0m"); // Debug message
+        System.out.println(Utils.GREY + "Saving bookings data..." + Utils.RESET);
+        int bookingsSaved = 0;
+        // Use try-with-resources
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(BOOKINGS_FILE))) {
-            // Save Plane bookings
-            for (PlaneBooking plane : planes) {
-                String vehicleId = plane.getFlightId();
-                // Directly iterate through the bookings map using the public getter
-                for (Map.Entry<String, ?> entry : plane.getBookings().entrySet()) {
-                    String bookingId = entry.getKey().toUpperCase(); // Save uppercase ID
-                    // Cast the value to the correct inner Booking type (we know it's static now)
-                    Object bookingObj = entry.getValue();
-                    // Access details using getters (Casting needed if Booking class is not directly accessible - but it should be via package access)
-                    try {
-                        // Assuming Booking class is accessible within the package
-                        PlaneBooking.Booking booking = (PlaneBooking.Booking) bookingObj; // Cast needed if generic Map type is used
-                        Seat seat = booking.getSeat();
-                        String line = String.join(DELIMITER,
-                                bookingId,
-                                booking.getUsername(),
-                                booking.getStartCity(),
-                                booking.getDestCity(),
-                                String.format("%.2f", booking.getPrice()), // Format price
-                                booking.getSeatClass(),
-                                String.valueOf(seat.getRow()),
-                                seat.getColumn(),
-                                vehicleId,
-                                booking.getTravelDate()
-                        );
-                        writer.write(line);
-                        writer.newLine();
-                    } catch (ClassCastException e) {
-                        System.err.println("\033[1;31mError casting booking object during save for Plane ID " + vehicleId + ". Booking ID: " + bookingId + "\033[0m");
+            // Save Plane bookings from all plane manager objects
+            if (planes != null) {
+                for (PlaneBooking plane : planes) {
+                    String vehicleId = plane.getFlightId(); // This is the manager ID (e.g., PLANE-MANAGER-1)
+                    for (Map.Entry<String, ?> entry : plane.getBookings().entrySet()) {
+                        String bookingId = entry.getKey().toUpperCase();
+                        try {
+                            PlaneBooking.Booking booking = (PlaneBooking.Booking) entry.getValue(); // Cast to inner class
+                            Seat seat = booking.getSeat();
+                            // Join using the delimiter, including the provider
+                            String line = String.join(DELIMITER,
+                                    bookingId, booking.getUsername(), booking.getStartCity(), booking.getDestCity(),
+                                    String.format("%.2f", booking.getPrice()), booking.getSeatClass(),
+                                    String.valueOf(seat.getRow()), seat.getColumn(), vehicleId, booking.getTravelDate(),
+                                    booking.getProvider() // Save the actual provider
+                            );
+                            writer.write(line); writer.newLine(); bookingsSaved++;
+                        } catch (ClassCastException | NullPointerException e) { System.err.println(Utils.RED+"Error processing plane booking "+bookingId+": "+e.getMessage()+Utils.RESET); }
                     }
                 }
             }
-
             // Save Train bookings (similar logic)
-            for (TrainBooking train : trains) {
-                String vehicleId = train.getTrainId();
-                for (Map.Entry<String, ?> entry : train.getBookings().entrySet()) {
-                    String bookingId = entry.getKey().toUpperCase();
-                    Object bookingObj = entry.getValue();
-                    try {
-                        TrainBooking.Booking booking = (TrainBooking.Booking) bookingObj;
-                        Seat seat = booking.getSeat();
-                        String line = String.join(DELIMITER,
-                                bookingId, booking.getUsername(), booking.getStartCity(), booking.getDestCity(),
-                                String.format("%.2f", booking.getPrice()), booking.getSeatClass(),
-                                String.valueOf(seat.getRow()), seat.getColumn(), vehicleId, booking.getTravelDate()
-                        );
-                        writer.write(line);
-                        writer.newLine();
-                    } catch (ClassCastException e) {
-                        System.err.println("\033[1;31mError casting booking object during save for Train ID " + vehicleId + ". Booking ID: " + bookingId + "\033[0m");
+            if (trains != null) {
+                for (TrainBooking train : trains) {
+                    String vehicleId = train.getTrainId();
+                    for (Map.Entry<String, ?> entry : train.getBookings().entrySet()) {
+                        String bookingId = entry.getKey().toUpperCase();
+                        try {
+                            TrainBooking.Booking booking = (TrainBooking.Booking) entry.getValue();
+                            Seat seat = booking.getSeat();
+                            String line = String.join(DELIMITER,
+                                    bookingId, booking.getUsername(), booking.getStartCity(), booking.getDestCity(),
+                                    String.format("%.2f", booking.getPrice()), booking.getSeatClass(),
+                                    String.valueOf(seat.getRow()), seat.getColumn(), vehicleId, booking.getTravelDate(),
+                                    booking.getProvider());
+                            writer.write(line); writer.newLine(); bookingsSaved++;
+                        } catch (ClassCastException | NullPointerException e) { System.err.println(Utils.RED+"Error processing train booking "+bookingId+": "+e.getMessage()+Utils.RESET); }
                     }
                 }
             }
-
             // Save Bus bookings (similar logic)
-            for (BusBooking bus : buses) {
-                String vehicleId = bus.getBusId();
-                for (Map.Entry<String, ?> entry : bus.getBookings().entrySet()) {
-                    String bookingId = entry.getKey().toUpperCase();
-                    Object bookingObj = entry.getValue();
-                    try {
-                        BusBooking.Booking booking = (BusBooking.Booking) bookingObj;
-                        Seat seat = booking.getSeat();
-                        String line = String.join(DELIMITER,
-                                bookingId, booking.getUsername(), booking.getStartCity(), booking.getDestCity(),
-                                String.format("%.2f", booking.getPrice()), booking.getSeatClass(), // Should be "Standard"
-                                String.valueOf(seat.getRow()), seat.getColumn(), vehicleId, booking.getTravelDate()
-                        );
-                        writer.write(line);
-                        writer.newLine();
-                    } catch (ClassCastException e) {
-                        System.err.println("\033[1;31mError casting booking object during save for Bus ID " + vehicleId + ". Booking ID: " + bookingId + "\033[0m");
+            if (buses != null) {
+                for (BusBooking bus : buses) {
+                    String vehicleId = bus.getBusId();
+                    for (Map.Entry<String, ?> entry : bus.getBookings().entrySet()) {
+                        String bookingId = entry.getKey().toUpperCase();
+                        try {
+                            BusBooking.Booking booking = (BusBooking.Booking) entry.getValue();
+                            Seat seat = booking.getSeat();
+                            String line = String.join(DELIMITER,
+                                    bookingId, booking.getUsername(), booking.getStartCity(), booking.getDestCity(),
+                                    String.format("%.2f", booking.getPrice()), booking.getSeatClass(), // Should be Standard
+                                    String.valueOf(seat.getRow()), seat.getColumn(), vehicleId, booking.getTravelDate(),
+                                    booking.getProvider());
+                            writer.write(line); writer.newLine(); bookingsSaved++;
+                        } catch (ClassCastException | NullPointerException e) { System.err.println(Utils.RED+"Error processing bus booking "+bookingId+": "+e.getMessage()+Utils.RESET); }
                     }
                 }
             }
-
-            System.out.println("\033[1;32mBookings data saved successfully to " + BOOKINGS_FILE + ".\033[0m");
-        } catch (IOException e) {
-            System.err.println("\033[1;31mError saving bookings data to " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
-        } catch (Exception e) {
-            // Catch unexpected errors during saving
-            System.err.println("\033[1;31mAn unexpected error occurred during booking save: " + e.getMessage() + "\033[0m");
-            e.printStackTrace();
-        }
+            System.out.println(Utils.GREEN + "Bookings data saved successfully ("+bookingsSaved+" bookings)." + Utils.RESET);
+        } catch (IOException e) { System.err.println(Utils.RED_BOLD + "Error saving bookings: " + Utils.RESET + Utils.RED + e.getMessage() + Utils.RESET); }
+        catch (Exception e) { System.err.println(Utils.RED_BOLD + "Unexpected error during booking save: " + e.getMessage() + Utils.RESET); e.printStackTrace();}
     }
 
     /**
-     * Loads bookings from the bookings file and adds them to the appropriate
-     * Plane, Train, or Bus objects.
-     * Format expected: BookingID:Username:StartCity:DestCity:Price:SeatClass:SeatRow:SeatCol:VehicleID:TravelDate
-     *
-     * @param planes List of PlaneBooking objects to populate.
-     * @param trains List of TrainBooking objects to populate.
-     * @param buses List of BusBooking objects to populate.
+     * Loads bookings using the updated format including the provider.
+     * Format: BookingID:Username:Start:Dest:Price:SeatClass:Row:Col:VehicleID:Date:Provider
      */
     public static void loadBookings(List<PlaneBooking> planes, List<TrainBooking> trains, List<BusBooking> buses) {
         File file = new File(BOOKINGS_FILE);
-        if (!file.exists()) {
-            System.out.println("\033[1;33mBookings file (" + BOOKINGS_FILE + ") not found. Starting with no existing bookings.\033[0m");
-            return;
-        }
+        if (!file.exists()) { System.out.println(Utils.YELLOW + "Bookings file (" + BOOKINGS_FILE + ") not found. Starting fresh." + Utils.RESET); return; }
 
-        System.out.println("\033[0;90mLoading bookings data from " + BOOKINGS_FILE + "...\033[0m");
-        int lineNumber = 0;
-        int loadedCount = 0;
+        System.out.println(Utils.GREY + "Loading bookings data from " + BOOKINGS_FILE + "..." + Utils.RESET);
+        int lineNumber = 0; int loadedCount = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -199,90 +148,63 @@ public class StorageManager {
                 if (line.trim().isEmpty() || line.startsWith("#")) continue;
 
                 String[] parts = line.split(DELIMITER);
-                // Expecting 10 parts for the new format
-                if (parts.length != 10) {
-                    System.err.println("\033[1;33mWarning: Skipping malformed line #" + lineNumber + " in " + BOOKINGS_FILE + " (Expected 10 parts, found " + parts.length + "): " + line + "\033[0m");
-                    continue; // Skip malformed entries
+                // Expecting 11 parts now
+                if (parts.length != 11) {
+                    System.err.println(Utils.YELLOW_BOLD + "Warning:" + Utils.YELLOW + " Skipping malformed line #" + lineNumber + " (Expected 11 parts, found " + parts.length + ")" + Utils.RESET);
+                    continue;
                 }
 
                 try {
-                    // Parse data from parts
-                    String bookingId = parts[0].toUpperCase(); // Load uppercase ID
-                    String username = parts[1];
-                    String startCity = parts[2];
-                    String destCity = parts[3];
-                    double price = Double.parseDouble(parts[4]);
-                    String seatClass = parts[5];
-                    int row = Integer.parseInt(parts[6]);
-                    String col = parts[7]; // Seat column is already a string
-                    String vehicleId = parts[8];
-                    String travelDate = parts[9]; // Travel date is the last part
+                    // Parse all parts
+                    String bookingId = parts[0].toUpperCase(); String username = parts[1];
+                    String startCity = parts[2]; String destCity = parts[3];
+                    double price = Double.parseDouble(parts[4]); String seatClass = parts[5];
+                    int row = Integer.parseInt(parts[6]); String col = parts[7];
+                    String vehicleId = parts[8]; // ID of the *manager* object
+                    String travelDate = parts[9]; String provider = parts[10]; // The actual service provider
 
-                    // Determine transport type from Booking ID prefix
                     String transportType = "";
                     if (bookingId.startsWith("P")) transportType = "Plane";
                     else if (bookingId.startsWith("T")) transportType = "Train";
                     else if (bookingId.startsWith("B")) transportType = "Bus";
-                    else {
-                        System.err.println("\033[1;33mWarning: Skipping line #" + lineNumber + " due to unknown booking ID prefix: " + bookingId + "\033[0m");
-                        continue;
-                    }
+                    else { System.err.println(Utils.YELLOW + "Warning: Unknown booking ID prefix on line #" + lineNumber + Utils.RESET); continue; }
 
-                    // Create the Seat object - its status will be set by addBooking
+                    // Create Seat object (price here might be the final price paid)
                     Seat seat = new Seat(row, col, seatClass, transportType, price);
 
-                    // Find the correct vehicle and add the booking
+                    // Find the correct manager object by its ID and add the booking
                     boolean bookingAdded = false;
                     if (transportType.equals("Plane")) {
                         for (PlaneBooking plane : planes) {
                             if (plane.getFlightId().equals(vehicleId)) {
-                                plane.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
-                                bookingAdded = true;
-                                break;
+                                plane.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate, provider);
+                                bookingAdded = true; break;
                             }
                         }
                     } else if (transportType.equals("Train")) {
                         for (TrainBooking train : trains) {
                             if (train.getTrainId().equals(vehicleId)) {
-                                train.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
-                                bookingAdded = true;
-                                break;
+                                train.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate, provider);
+                                bookingAdded = true; break;
                             }
                         }
                     } else if (transportType.equals("Bus")) {
-                        // For bus, ensure seatClass loaded is "Standard" conceptually
                         for (BusBooking bus : buses) {
                             if (bus.getBusId().equals(vehicleId)) {
-                                // BusBooking's addBooking should handle setting class to "Standard"
-                                bus.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
-                                bookingAdded = true;
-                                break;
+                                bus.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate, provider);
+                                bookingAdded = true; break;
                             }
                         }
                     }
 
-                    if (bookingAdded) {
-                        loadedCount++;
-                    } else {
-                        System.err.println("\033[1;33mWarning: Skipping line #" + lineNumber + ". Could not find matching vehicle ID '" + vehicleId + "' for booking ID '" + bookingId + "'.\033[0m");
-                    }
+                    if (bookingAdded) loadedCount++;
+                    else { System.err.println(Utils.YELLOW + "Warning: No matching manager vehicle found for ID '" + vehicleId + "' on line #" + lineNumber + "." + Utils.RESET); }
 
-                } catch (NumberFormatException e) {
-                    System.err.println("\033[1;33mWarning: Skipping line #" + lineNumber + " due to number format error in " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
-                } catch (Exception e) { // Catch any other unexpected errors during parsing/loading
-                    System.err.println("\033[1;31mError processing line #" + lineNumber + " in " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
-                    e.printStackTrace(); // Print stack trace for debugging help
-                }
-            } // End while loop
-            System.out.println("\033[1;32mBookings data loaded successfully (" + loadedCount + " bookings).\033[0m");
-        } catch (IOException e) {
-            System.err.println("\033[1;31mError loading bookings data from " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
-        }
+                } catch (NumberFormatException e) { System.err.println(Utils.YELLOW + "Warning: Skipping line #" + lineNumber + " due to number format error: " + e.getMessage() + Utils.RESET); }
+                catch (Exception e) { System.err.println(Utils.RED + "Error processing line #" + lineNumber + ": " + e.getMessage() + Utils.RESET); e.printStackTrace(); }
+            } // End while
+            System.out.println(Utils.GREEN + "Bookings data loaded successfully (" + loadedCount + " bookings)." + Utils.RESET);
+        } catch (IOException e) { System.err.println(Utils.RED_BOLD + "Error loading bookings: " + Utils.RESET + Utils.RED + e.getMessage() + Utils.RESET); }
     }
-
-    // --- REMOVED METHODS ---
-    // removeBooking(String bookingId, ...) - Removed, cancellation handled in memory
-    // getBookingsMap(...) - Removed, no longer needed due to public getters
-    // invokeMethod(...) - Removed, no reflection needed
 
 } // End of StorageManager class
