@@ -1,112 +1,162 @@
 package TicketBookingSystem;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.InputMismatchException;
 import java.util.Scanner;
-// Removed java.util.HashMap import as the static distances map is gone.
+import java.util.Set;
 
 public class Utils {
 
-    // --- Price Constants (Still needed for calculatePrice) ---
-    // Base price per kilometer for each transport type (adjust as needed)
-    private static final double PLANE_PRICE_PER_KM = 5.0;  // Rs. 5 per km
-    private static final double TRAIN_PRICE_PER_KM = 1.0;  // Rs. 1 per km
-    private static final double BUS_PRICE_PER_KM = 0.5;    // Rs. 0.5 per km
+    // Price Constants
+    private static final double PLANE_PRICE_PER_KM = 5.0;
+    private static final double TRAIN_PRICE_PER_KM = 1.0;
+    private static final double BUS_PRICE_PER_KM = 0.5;
 
-    // --- Removed static distances map and initializer block ---
-    // private static final HashMap<String, HashMap<String, Integer>> distances = new HashMap<>();
-    // static { ... }
+    // Date Formatter (Strict parsing for dd-MM-yyyy)
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd-MM-uuuu")
+                    .withResolverStyle(ResolverStyle.STRICT);
 
-    // --- Removed static CITIES array ---
-    // public static final String[] CITIES = {"Delhi", "Mumbai", "Chennai", "Kolkata"};
+    // Valid Gender Options (Used for case-insensitive check)
+    private static final Set<String> VALID_GENDERS = new HashSet<>(Arrays.asList(
+            "MALE", "FEMALE", "OTHER", "M", "F", "O"
+    ));
 
+    // --- Standard Utilities (pause, clearScreen, printBanner, etc.) ---
 
-    /**
-     * Pauses the execution and waits for the user to press Enter.
-     * Clears the input buffer before waiting.
-     * @param sc Scanner object to read input.
-     */
     public static void pause(Scanner sc) {
         System.out.print("\n\033[1;33mPress Enter to continue...\033[0m");
-        // No need for sc.nextLine() here if the previous input consumed the newline.
-        // If issues arise, uncomment the next line. Be careful not to consume needed input.
-        // if(sc.hasNextLine()) sc.nextLine(); // Consume any leftover newline
-        sc.nextLine(); // Wait for Enter key press
+        sc.nextLine();
     }
 
-    /**
-     * Clears the console screen using ANSI escape codes.
-     * May not work on all terminals (e.g., some IDE consoles).
-     */
     public static void clearScreen() {
-        // Standard ANSI escape codes for clearing screen and moving cursor to top-left
         System.out.print("\033[H\033[2J");
-        System.out.flush(); // Ensure the codes are sent to the terminal immediately
+        System.out.flush();
     }
 
-    /**
-     * Validates if the input string matches a pattern for row and column (e.g., "5 B" or "10 A").
-     * Note: This might need adjustments based on actual seat formats (e.g., multi-letter columns).
-     * @param input The user input string.
-     * @return true if the input matches the expected pattern, false otherwise.
-     */
     public static boolean isValidRowColumn(String input) {
         if (input == null || input.trim().isEmpty()) {
             return false;
         }
-        // Matches one or more digits, followed by whitespace, followed by one or more letters.
-        // Allows for rows > 9 and potentially multi-letter columns like "AA".
         return input.trim().matches("\\d+\\s+[A-Za-z]+");
-        // Original regex: kept for reference
-        // return input.matches("\\d+\\s+[A-Z]") || input.matches("\\d+\\s+\\d+");
     }
 
-    /**
-     * Prints a formatted banner with the given title using ANSI colors.
-     * @param title The title text to display in the banner.
-     */
+
     public static void printBanner(String title) {
-        // Example: === My Title === (in bold cyan)
         System.out.println("\n\033[1;36m=== " + title + " ===\033[0m");
     }
 
-    // --- Removed getDistance method ---
-    // public static int getDistance(String start, String dest) { ... }
-
-    /**
-     * Calculates the base price for a ticket based on transport type and distance.
-     * Uses predefined price-per-kilometer constants.
-     *
-     * @param transportType The type of transport ("Plane", "Train", "Bus"). Case-insensitive.
-     * @param distance The distance of the route in kilometers. Should be >= 0.
-     * @return The calculated base price, or 0.0 if transport type is unknown or distance is negative.
-     */
     public static double calculatePrice(String transportType, int distance) {
-        // Return 0 if distance is invalid
         if (distance < 0) {
             System.err.println("\033[1;31mWarning: calculatePrice called with negative distance: " + distance + "\033[0m");
             return 0.0;
         }
-
         double pricePerKm;
-        // Use toLowerCase() for case-insensitive matching
         switch (transportType.toLowerCase()) {
-            case "plane":
-                pricePerKm = PLANE_PRICE_PER_KM;
-                break;
-            case "train":
-                pricePerKm = TRAIN_PRICE_PER_KM;
-                break;
-            case "bus":
-                pricePerKm = BUS_PRICE_PER_KM;
-                break;
+            case "plane": pricePerKm = PLANE_PRICE_PER_KM; break;
+            case "train": pricePerKm = TRAIN_PRICE_PER_KM; break;
+            case "bus": pricePerKm = BUS_PRICE_PER_KM; break;
             default:
                 System.err.println("\033[1;31mWarning: calculatePrice called with unknown transport type: " + transportType + "\033[0m");
-                pricePerKm = 0.0; // Unknown type, return 0 price
+                pricePerKm = 0.0;
         }
-        // Calculate and return the total base price
         return pricePerKm * distance;
     }
 
-    // --- Removed displayCities method ---
-    // public static void displayCities() { ... }
+    // --- NEW VALIDATION METHODS ---
+
+    /**
+     * Prompts the user for a travel date (DD-MM-YYYY) and validates it.
+     * Ensures the date is valid and not in the past. Allows user to type 'back'.
+     *
+     * @param sc Scanner for input.
+     * @return Valid future date string or null if user types 'back'.
+     */
+    public static String getValidTravelDate(Scanner sc) {
+        LocalDate travelDate = null;
+        LocalDate today = LocalDate.now();
+        String inputDateStr = "";
+
+        while (travelDate == null) {
+            System.out.print("\033[1mEnter travel date (DD-MM-YYYY) or type 'back': \033[0m");
+            inputDateStr = sc.nextLine().trim();
+
+            if (inputDateStr.equalsIgnoreCase("back")) {
+                return null; // Allow cancellation
+            }
+
+            try {
+                travelDate = LocalDate.parse(inputDateStr, DATE_FORMATTER);
+                if (travelDate.isBefore(today)) {
+                    System.out.println("\033[1;31mTravel date cannot be in the past. Please enter today or a future date.\033[0m");
+                    travelDate = null; // Loop again
+                }
+            } catch (DateTimeParseException e) {
+                System.out.println("\033[1;31mInvalid date or format. Please use DD-MM-YYYY (e.g., " + today.format(DATE_FORMATTER) + ").\033[0m");
+            } catch (Exception e) {
+                System.out.println("\033[1;31mError parsing date: " + e.getMessage() + "\033[0m");
+            }
+        }
+        return inputDateStr; // Return the validated input string
+    }
+
+    /**
+     * Prompts the user for passenger age and validates it (0-120).
+     *
+     * @param sc Scanner for input.
+     * @return Valid integer age.
+     */
+    public static int getValidAge(Scanner sc) {
+        int age = -1;
+        while (age < 0) {
+            System.out.print("\033[1mEnter age (0-120): \033[0m");
+            try {
+                age = sc.nextInt();
+                sc.nextLine(); // Consume newline
+
+                if (age < 0 || age > 120) {
+                    System.out.println("\033[1;31mInvalid age. Please enter an age between 0 and 120.\033[0m");
+                    age = -1; // Reset to loop
+                }
+            } catch (InputMismatchException e) {
+                System.out.println("\033[1;31mInvalid input. Please enter a number for age.\033[0m");
+                sc.nextLine(); // Consume invalid input
+                age = -1;
+            } catch (Exception e) {
+                System.out.println("\033[1;31mError reading age: " + e.getMessage() + "\033[0m");
+                age = -1;
+            }
+        }
+        return age;
+    }
+
+    /**
+     * Prompts the user for gender and validates against allowed options.
+     *
+     * @param sc Scanner for input.
+     * @return Validated gender string.
+     */
+    public static String getValidGender(Scanner sc) {
+        String gender = "";
+        boolean isValid = false;
+        while (!isValid) {
+            System.out.print("\033[1mEnter gender (Male/Female/Other or M/F/O): \033[0m");
+            gender = sc.nextLine().trim();
+
+            if (gender.isEmpty()) {
+                System.out.println("\033[1;31mGender cannot be empty.\033[0m");
+            } else if (VALID_GENDERS.contains(gender.toUpperCase())) {
+                isValid = true;
+            } else {
+                System.out.println("\033[1;31mInvalid input. Please use Male, Female, Other, M, F, or O.\033[0m");
+            }
+        }
+        return gender; // Return validated input
+    }
 
 } // End of Utils class
