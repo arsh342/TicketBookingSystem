@@ -5,7 +5,7 @@ package TicketBookingSystem;
  */
 public class Seat {
     private final int row;
-    private final String column;
+    private final String column; // e.g., "A", "B"
     private final String seatClass;
     private final String transportType; // Plane, Train, Bus
     private final double price;
@@ -13,7 +13,7 @@ public class Seat {
 
     public Seat(int row, String column, String seatClass, String transportType, double price) {
         this.row = row;
-        this.column = column; // Assuming column is like "A", "B" etc.
+        this.column = column;
         this.seatClass = seatClass;
         this.transportType = transportType;
         this.price = price;
@@ -29,8 +29,8 @@ public class Seat {
     public boolean isReserved() { return isReserved; }
 
     // --- Modifiers ---
-    public void reserve() { isReserved = true; }
-    public void unreserve() { isReserved = false; }
+    public void reserve() { this.isReserved = true; }
+    public void unreserve() { this.isReserved = false; }
 
     /**
      * Gets a string representation of the seat ID (e.g., "5B", "10A").
@@ -40,28 +40,30 @@ public class Seat {
         return "" + row + column;
     }
 
+    /**
+     * Returns a string representation for display in seat maps.
+     * Example: O(1A) for available, X(1A) for reserved.
+     */
     @Override
     public String toString() {
-        // Display like O(5B) or X(10A)
-        String status = isReserved ? "\033[31mX\033[0m" : "\033[32mO\033[0m";
+        String status = isReserved ? "\033[31mX\033[0m" : "\033[32mO\033[0m"; // Red X, Green O
         return status + "(" + getSeatId() + ")";
     }
 
-    // Optional: equals() and hashCode() if seats need to be compared directly
-    // based on row, column, and potentially transport type/class
+    // Optional: equals/hashCode if needed for Set/Map operations based on seat identity
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Seat seat = (Seat) o;
+        // Define equality based on row, column, and potentially type/class if needed
         return row == seat.row &&
-                column.equals(seat.column) &&
-                seatClass.equals(seat.seatClass) &&
-                transportType.equals(seat.transportType);
+                java.util.Objects.equals(column, seat.column) &&
+                java.util.Objects.equals(transportType, seat.transportType); // Example
     }
 
     @Override
     public int hashCode() {
-        return java.util.Objects.hash(row, column, seatClass, transportType);
+        return java.util.Objects.hash(row, column, transportType); // Example
     }
 }

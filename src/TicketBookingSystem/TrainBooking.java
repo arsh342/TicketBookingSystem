@@ -1,23 +1,18 @@
 package TicketBookingSystem;
 
 import java.util.HashMap;
+import java.util.InputMismatchException; // Required import
 import java.util.Map;
 import java.util.Scanner;
-import java.util.InputMismatchException; // Make sure this is imported
 
 public class TrainBooking {
-    // Seats list for the current booking transaction's display and selection
+    // Seats list for the current booking transaction
     private final CustomLinkedList<Seat> seats = new CustomLinkedList<>();
-    // Passengers list might be redundant
-    // private final CustomLinkedList<Passenger> passengers = new CustomLinkedList<>();
-
-    // Persistent storage of bookings for this specific trainId
+    // Persistent storage of bookings for this train
     private Map<String, Booking> bookings = new HashMap<>();
 
     private final String trainId;
     private final BookingSystem bookingSystem; // Reference to the main system
-
-    // Removed startCity, destCity, routePrice instance variables
 
     /**
      * Constructor for TrainBooking.
@@ -27,37 +22,28 @@ public class TrainBooking {
     public TrainBooking(String trainId, BookingSystem bookingSystem) {
         this.trainId = trainId;
         this.bookingSystem = bookingSystem;
-        // Bookings are loaded by StorageManager via addBooking calls
+        // Bookings loaded via StorageManager -> BookingSystem -> addBooking
     }
 
     /**
-     * Initializes the seat layout based on class and price for a booking transaction.
-     * Uses a simplified, generic layout for demonstration.
-     * @param seatClass The selected train class (e.g., "Sleeper Class (SL)").
+     * Initializes seat layout based on class and price. Uses a simplified layout.
+     * @param seatClass The selected train class.
      * @param finalSeatPrice The calculated price for a seat in this class.
      */
-    // Updated from initTrainSeats to initializeSeats
     private void initializeSeats(String seatClass, double finalSeatPrice) {
-        seats.clear(); // Clear previous layout
-        // Simplified layout: Assume 10 rows, 5 columns (A-E) for all classes for now
-        int rows = 10; // Example rows
-        char[] columns = {'A', 'B', 'C', 'D', 'E'}; // Example columns
-
+        seats.clear();
+        // Simplified layout - real layouts vary greatly
+        int rows = 10;
+        char[] columns = {'A', 'B', 'C', 'D', 'E'};
         for (int r = 1; r <= rows; r++) {
             for (char c : columns) {
                 seats.add(new Seat(r, String.valueOf(c), seatClass, "Train", finalSeatPrice));
             }
         }
-        // Mark seats already booked for this class
-        markExistingBookings(seatClass);
+        markExistingBookings(seatClass); // Mark already booked seats
     }
 
-    /**
-     * Marks seats in the newly initialized layout as reserved based on existing bookings
-     * for this train and the specified seat class.
-     * @param seatClass The class currently being booked.
-     */
-    // (Keep markExistingBookings as provided before)
+    /** Marks seats as reserved based on the loaded bookings map. */
     private void markExistingBookings(String seatClass) {
         for (Booking booked : this.bookings.values()) {
             if (booked.getSeatClass().equalsIgnoreCase(seatClass)) {
@@ -69,79 +55,74 @@ public class TrainBooking {
         }
     }
 
-
-    /**
-     * Displays the current seating layout for the initialized class.
-     * Uses a generic 3-2 configuration assumption for display.
-     */
-    // (Keep displaySeats as provided before)
+    /** Displays the current seat layout with colors and headers. */
     public void displaySeats() {
         if (seats.isEmpty()) {
-            System.out.println("\033[1;33mSeat layout not initialized or no seats available for this class.\033[0m");
+            System.out.println(Utils.YELLOW + "Seat layout not initialized or no seats available." + Utils.RESET);
             return;
         }
         String seatClass = seats.getHead().data.getSeatClass();
-        System.out.println("\n\033[1;36mTrain Seat Layout - " + seatClass + " (Train ID: " + trainId + ")\033[0m");
-        System.out.println("\033[0;90m(Layout based on simplified 3-2 configuration view)\033[0m");
+        System.out.println("\n" + Utils.CYAN_BOLD + "Train Seat Layout - " + seatClass + " (Train ID: " + trainId + ")" + Utils.RESET);
+        System.out.println(Utils.GREY + "(Layout based on simplified 5-column view)" + Utils.RESET);
+
+        // Determine last column for header
+        char firstCol = seats.getHead().data.getColumn().charAt(0);
+        char lastCol = firstCol;
+        CustomLinkedList.Node<Seat> node = seats.getHead();
+        while(node.next != null && node.data.getRow() == seats.getHead().data.getRow()) {
+            lastCol = node.next.data.getColumn().charAt(0);
+            node = node.next;
+        }
+
+
+        // Print Column Headers
+        System.out.print("     "); // Space for "Row XX:"
+        for (char c = firstCol; c <= lastCol; c++) {
+            System.out.print(Utils.YELLOW_BOLD + " " + c + " " + Utils.RESET);
+            if (c == 'C') System.out.print("   "); // Assume aisle after C in header
+        }
+        System.out.println();
+
+        // Print Seat Rows
+        CustomLinkedList.Node<Seat> temp = seats.getHead();
         int currentRow = -1;
         StringBuilder rowDisplay = new StringBuilder();
-        CustomLinkedList.Node<Seat> temp = seats.getHead();
         while (temp != null) {
             Seat seat = temp.data;
             if (seat.getRow() != currentRow) {
                 if (currentRow != -1) System.out.println(rowDisplay);
-                rowDisplay = new StringBuilder("\033[1mRow " + String.format("%2d", seat.getRow()) + ":\033[0m ");
+                rowDisplay = new StringBuilder(Utils.YELLOW_BOLD + String.format("Row %2d:", seat.getRow()) + Utils.RESET);
                 currentRow = seat.getRow();
             }
-            rowDisplay.append(seat.toString()).append(" ");
-            if (seat.getColumn().equalsIgnoreCase("C")) { // Aisle after C
-                rowDisplay.append("  ");
-            }
+            rowDisplay.append(" ").append(seat.toString());
+            if (seat.getColumn().equalsIgnoreCase("C")) rowDisplay.append("  "); // Aisle after C
             temp = temp.next;
         }
         if (!rowDisplay.isEmpty()) System.out.println(rowDisplay);
-        System.out.println("\n\033[1mSeat Legend:\033[0m");
-        System.out.println(" \033[32mO(RowCol)\033[0m - Available");
-        System.out.println(" \033[31mX(RowCol)\033[0m - Reserved");
+
+        // Print Legend
+        System.out.println("\n" + Utils.BLUE_BOLD + "Seat Legend:" + Utils.RESET);
+        System.out.println(" " + Utils.GREEN + "O" + Utils.RESET + "(RowCol) - Available");
+        System.out.println(" " + Utils.RED + "X" + Utils.RESET + "(RowCol) - Reserved");
     }
 
-
-    /**
-     * Handles the process of booking a specific seat for a user on this train.
-     * Includes validation for date, age, and gender input.
-     *
-     * @param sc Scanner for user input.
-     * @param username The logged-in user.
-     * @param startCity The origin city.
-     * @param destCity The destination city.
-     * @param finalSeatPrice The final price for one seat in the selected class.
-     * @param seatClass The selected class (e.g., "Sleeper Class (SL)").
-     * @param travelDate The selected travel date string (pre-validated by BookingSystem).
-     */
-    // *** Updated book method with validation ***
+    /** Handles booking a seat with input validation. */
     public void book(Scanner sc, String username, String startCity, String destCity, double finalSeatPrice, String seatClass, String travelDate) {
-
-        // Initialize/Re-initialize seat layout for this booking attempt
         initializeSeats(seatClass, finalSeatPrice);
-
         if (seats.isEmpty()) {
-            System.out.println("\033[1;31mFailed to initialize seats for class: " + seatClass + ". Cannot proceed.\033[0m");
+            System.out.println(Utils.RED + "Failed to initialize seats for class: " + seatClass + "." + Utils.RESET);
             return;
         }
 
-        System.out.printf("\033[1mTicket Price (%s, per seat): Rs. \033[32m%.2f\033[0m\n", seatClass, finalSeatPrice);
-        displaySeats(); // Show available seats
+        System.out.printf("\n" + Utils.BLUE_BOLD + "Ticket Price (" + Utils.CYAN + "%s" + Utils.BLUE_BOLD + ", per seat): Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", seatClass, finalSeatPrice);
+        displaySeats();
 
         Seat selectedSeat = null;
         while (selectedSeat == null) {
-            System.out.println("\n\033[1;33mExample: To book Row 3 Seat B, enter: 3 B\033[0m");
-            System.out.print("\033[1mEnter row number and seat column (or type 'back'): \033[0m");
-
+            System.out.println("\n" + Utils.YELLOW + "Example: To book Row 3 Seat B, enter: 3 B" + Utils.RESET);
+            System.out.print(Utils.WHITE_BOLD + "Enter row and seat column (or type 'back'): " + Utils.RESET);
             String inputLine = sc.nextLine().trim();
-            if (inputLine.equalsIgnoreCase("back")) {
-                System.out.println("\033[1;33mSeat selection cancelled.\033[0m");
-                return; // Exit booking process
-            }
+            if (inputLine.equalsIgnoreCase("back")) { System.out.println(Utils.YELLOW + "Seat selection cancelled." + Utils.RESET); return; }
 
             String[] parts = inputLine.split("\\s+");
             if (parts.length == 2) {
@@ -149,101 +130,74 @@ public class TrainBooking {
                     int row = Integer.parseInt(parts[0]);
                     String col = parts[1].toUpperCase();
                     Seat potentialSeat = findSeat(row, col);
-
-                    if (potentialSeat == null) {
-                        System.out.println("\033[1;31mSeat " + row + col + " not found in this layout. Check available seats.\033[0m");
-                    } else if (potentialSeat.isReserved()) {
-                        System.out.println("\033[1;31mSeat " + potentialSeat.getSeatId() + " is already reserved. Please choose another.\033[0m");
-                    } else if (!potentialSeat.getSeatClass().equalsIgnoreCase(seatClass)) {
-                        System.out.println("\033[1;31mError: Seat " + potentialSeat.getSeatId() + " is not in the selected class (" + seatClass + ").\033[0m");
-                    }
-                    else {
-                        selectedSeat = potentialSeat; // Seat is valid
-                    }
-                } catch (NumberFormatException e) {
-                    System.out.println("\033[1;31mInvalid input format. Please enter row number and column letter (e.g., 5 B).\033[0m");
-                }
-            } else {
-                System.out.println("\033[1;31mInvalid input format. Please enter row and column (e.g., 3 B) or 'back'.\033[0m");
-            }
-        } // End while loop for seat selection
-
-        // --- Get Passenger Details with Validation ---
-        String name = "";
-        System.out.printf("\033[1mSelected Seat:\033[0m %s, Price: Rs. \033[32m%.2f\033[0m\n", selectedSeat.getSeatId(), selectedSeat.getPrice());
-
-        // Name (simple non-empty validation)
-        while (name.isEmpty()) {
-            System.out.print("\033[1mEnter passenger name: \033[0m");
-            name = sc.nextLine().trim();
-            if (name.isEmpty()) System.out.println("\033[1;31mPassenger name cannot be empty.\033[0m");
+                    if (potentialSeat == null) { System.out.println(Utils.RED + "Seat " + row + col + " not found." + Utils.RESET); }
+                    else if (potentialSeat.isReserved()) { System.out.println(Utils.RED + "Seat " + potentialSeat.getSeatId() + " is reserved." + Utils.RESET); }
+                    else if (!potentialSeat.getSeatClass().equalsIgnoreCase(seatClass)) { System.out.println(Utils.RED + "Error: Seat " + potentialSeat.getSeatId() + " not in class " + seatClass + "." + Utils.RESET); }
+                    else { selectedSeat = potentialSeat; }
+                } catch (NumberFormatException e) { System.out.println(Utils.RED + "Invalid row number format." + Utils.RESET); }
+                catch (Exception e) { System.out.println(Utils.RED + "Invalid input: " + e.getMessage() + Utils.RESET); }
+            } else { System.out.println(Utils.RED + "Invalid format. Use row and column (e.g., 3 B)." + Utils.RESET); }
         }
 
-        // Age (using Utils helper)
+        // Get Passenger Details using Utils for validation
+        System.out.printf(Utils.BLUE + "\nSelected Seat: " + Utils.MAGENTA_BOLD + "%s" + Utils.BLUE + ", Price: Rs. " + Utils.GREEN_BOLD + "%.2f" + Utils.RESET + "\n", selectedSeat.getSeatId(), selectedSeat.getPrice());
+        String name = "";
+        while (name.isEmpty()) {
+            System.out.print(Utils.WHITE_BOLD + "Enter passenger name: " + Utils.RESET);
+            name = sc.nextLine().trim();
+            if (name.isEmpty()) System.out.println(Utils.RED + "Passenger name cannot be empty." + Utils.RESET);
+        }
         int age = Utils.getValidAge(sc);
-
-        // Gender (using Utils helper)
         String gender = Utils.getValidGender(sc);
 
-
-        // --- Confirm and Finalize Booking ---
+        // Finalize Booking
         Passenger passenger = new Passenger(name, age, gender, selectedSeat);
-        // passengers.add(passenger); // Optional
-
-        selectedSeat.reserve(); // Mark seat as reserved
-
+        selectedSeat.reserve();
         String bookingId = "T" + bookingSystem.getNextBookingId("T");
-        String mapKey = bookingId.toUpperCase(); // Consistent key
-
+        String mapKey = bookingId.toUpperCase();
         Booking newBooking = new Booking(username, startCity, destCity, selectedSeat.getPrice(), seatClass, selectedSeat, travelDate);
-        bookings.put(mapKey, newBooking); // Add to persistent map
+        bookings.put(mapKey, newBooking);
 
-        // Print Confirmation
-        System.out.println("\n----------------------------------------");
-        System.out.println("\033[1;32mBooking Successful!\033[0m");
-        System.out.println("\033[1mBooking ID:\033[0m " + bookingId);
-        System.out.println("\033[1mTrain ID:\033[0m " + this.trainId);
-        System.out.println("\033[1mPassenger:\033[0m " + name);
-        System.out.println("\033[1mRoute:\033[0m " + startCity + " to " + destCity);
-        System.out.println("\033[1mClass:\033[0m " + seatClass); // Display the specific train class
-        System.out.println("\033[1mSeat:\033[0m " + selectedSeat.getSeatId());
-        System.out.println("\033[1mTravel Date:\033[0m " + travelDate);
-        System.out.printf("\033[1mTotal Paid: Rs. \033[32m%.2f\033[0m\n", selectedSeat.getPrice());
-        System.out.println("----------------------------------------");
+        // Confirmation Message
+        System.out.println("\n" + Utils.GREEN_BOLD + "========================================");
+        System.out.println("       Booking Successful!          ");
+        System.out.println("========================================" + Utils.RESET);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.YELLOW_BOLD + "%s\n" + Utils.RESET, "Booking ID", bookingId);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Train ID", this.trainId);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%s\n" + Utils.RESET, "Passenger", name);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%d\n" + Utils.RESET, "Age", age);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.MAGENTA + "%s\n" + Utils.RESET, "Gender", gender);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s -> %s\n" + Utils.RESET, "Route", startCity, destCity);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Class", seatClass);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.YELLOW_BOLD + "%s\n" + Utils.RESET, "Seat", selectedSeat.getSeatId());
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.CYAN + "%s\n" + Utils.RESET, "Travel Date", travelDate);
+        System.out.printf(Utils.BLUE_BOLD + "%-15s: " + Utils.GREEN_BOLD + "Rs. %.2f\n" + Utils.RESET, "Total Paid", selectedSeat.getPrice());
+        System.out.println(Utils.GREEN_BOLD + "========================================" + Utils.RESET);
 
-        displaySeats(); // Show updated map
+        displaySeats();
     }
 
-
-    // (Keep displayUserBookings as updated before - returning boolean)
+    /** Displays user's bookings with formatting and colors. */
     public boolean displayUserBookings(String username) {
         boolean hasBookings = false;
-        String header = String.format("\n\033[1;36m--- Train Bookings for %s (Train ID: %s) ---", username, this.trainId);
-        // Adjust column width for potentially longer Train class names
-        String columns = String.format("\033[1;34m%-10s | %-20s | %-20s | %-11s | %-10s | %s\033[0m",
-                "Booking ID", "Route", "Class", "Travel Date", "Price", "Seat");
-        String separator = "-----------+----------------------+----------------------+-------------+------------+------";
+        String header = String.format("\n" + Utils.CYAN_BOLD + "--- Train Bookings for " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + " (Train ID: " + Utils.YELLOW_BOLD + "%s" + Utils.CYAN_BOLD + ") ---" + Utils.RESET, username, this.trainId);
+        String columns = String.format(Utils.BLUE_BOLD + "%-10s | %-20s | %-20s | %-11s | %-10s | %s" + Utils.RESET, "Booking ID", "Route", "Class", "Travel Date", "Price", "Seat");
+        String separator = Utils.CYAN + "-----------+----------------------+----------------------+-------------+------------+------" + Utils.RESET;
         StringBuilder output = new StringBuilder();
+
         for (Map.Entry<String, Booking> entry : bookings.entrySet()) {
             Booking booking = entry.getValue();
             if (booking.getUsername().equals(username)) {
-                if (!hasBookings) {
-                    output.append(header).append("\n");
-                    output.append(columns).append("\n");
-                    output.append(separator).append("\n");
-                    hasBookings = true;
-                }
-                output.append(String.format("%-10s | %-20s | %-20s | %-11s | Rs. %-7.2f | %s\n",
-                        entry.getKey(), booking.getStartCity() + "->" + booking.getDestCity(),
-                        booking.getSeatClass(), booking.getTravelDate(), booking.getPrice(),
-                        booking.getSeat().getSeatId()));
+                if (!hasBookings) { output.append(header).append("\n").append(columns).append("\n").append(separator).append("\n"); hasBookings = true; }
+                output.append(String.format(Utils.YELLOW_BOLD + "%-10s" + Utils.RESET + " | " + Utils.MAGENTA + "%-20s" + Utils.RESET + " | " + Utils.MAGENTA + "%-20s" + Utils.RESET + " | " + Utils.MAGENTA + "%-11s" + Utils.RESET + " | " + Utils.GREEN_BOLD + "Rs. %-7.2f" + Utils.RESET + " | " + Utils.YELLOW_BOLD + "%s" + Utils.RESET + "\n",
+                        entry.getKey(), booking.getStartCity() + "->" + booking.getDestCity(), booking.getSeatClass(), booking.getTravelDate(), booking.getPrice(), booking.getSeat().getSeatId()));
             }
         }
         if (hasBookings) System.out.println(output);
         return hasBookings;
     }
 
-    // (Keep cancelBooking as updated before - returning boolean)
+    /** Cancels a booking, returns true on success. */
     public boolean cancelBooking(String bookingId, String username) {
         String mapKey = bookingId.toUpperCase();
         Booking booking = bookings.get(mapKey);
@@ -252,68 +206,53 @@ public class TrainBooking {
             Seat seatToUnreserve = findSeat(booking.getSeat().getRow(), booking.getSeat().getColumn());
             if (seatToUnreserve != null && seatToUnreserve.isReserved()) {
                 seatToUnreserve.unreserve();
-                System.out.println("\033[0;90m(Seat " + seatToUnreserve.getSeatId() + " marked as available in current view)\033[0m");
+                System.out.println(Utils.GREY + "(Seat " + seatToUnreserve.getSeatId() + " marked available in current view)" + Utils.RESET);
             }
             return true;
-        } else {
-            return false;
-        }
+        } else { return false; }
     }
 
-    // (Keep addBooking methods as updated before)
+    /** Adds a booking (used by StorageManager). */
     public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate) {
         seat.reserve();
         Booking loadedBooking = new Booking(username, startCity, destCity, price, seatClass, seat, travelDate);
         bookings.put(bookingId.toUpperCase(), loadedBooking);
     }
-    public void addBooking(String bookingId, String username, String startCity, String destCity, double price, String seatClass, Seat seat) {
-        addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, "N/A");
-    }
 
-    // (Keep getBookings as updated before)
-    public Map<String, Booking> getBookings() {
-        return bookings;
-    }
+    /** Gets the map of bookings. */
+    public Map<String, Booking> getBookings() { return bookings; }
 
-    // (Keep findSeat as updated before)
+    /** Finds a seat in the current layout list. */
     private Seat findSeat(int row, String col) {
         CustomLinkedList.Node<Seat> temp = seats.getHead();
         while (temp != null) {
             Seat seat = temp.data;
-            if (seat.getRow() == row && seat.getColumn().equalsIgnoreCase(col)) {
-                return seat;
-            }
+            if (seat.getRow() == row && seat.getColumn().equalsIgnoreCase(col)) return seat;
             temp = temp.next;
         }
         return null;
     }
 
-    // (Keep getTrainId as before)
-    public String getTrainId() {
-        return trainId;
-    }
+    /** Gets the train ID. */
+    public String getTrainId() { return trainId; }
 
-    // (Keep Booking inner class as updated before - 'static' not 'private static')
-    static class Booking {
+    /** Inner Booking class (package-private). */
+    static class Booking { // Changed from private static
+        // Fields and constructor...
         private final String username;
         private final String startCity;
         private final String destCity;
         private final double price;
         private final String seatClass;
-        private final Seat seat; // Reference to the specific Seat
+        private final Seat seat;
         private final String travelDate;
 
-        public Booking(String username, String startCity, String destCity, double price, String seatClass, Seat seat, String travelDate) {
-            this.username = username;
-            this.startCity = startCity;
-            this.destCity = destCity;
-            this.price = price;
-            this.seatClass = seatClass;
-            this.seat = seat;
-            this.travelDate = travelDate != null ? travelDate : "N/A";
+        public Booking(String u, String s, String d, double p, String sc, Seat se, String td) {
+            this.username = u; this.startCity = s; this.destCity = d;
+            this.price = p; this.seatClass = sc; this.seat = se;
+            this.travelDate = td != null ? td : "N/A";
         }
-
-        // --- Getters ---
+        // Getters...
         public String getUsername() { return username; }
         public String getStartCity() { return startCity; }
         public String getDestCity() { return destCity; }

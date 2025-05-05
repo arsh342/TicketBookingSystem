@@ -3,106 +3,141 @@ package TicketBookingSystem;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.InputMismatchException;
-import java.util.List;
-// Removed Random import
+import java.util.List; // Required import
 import java.util.Map;
 import java.util.Scanner;
-// Removed stream collectors import if no longer needed elsewhere
+// Removed Random and Collectors imports if no longer used
 
 public class BookingSystem {
     private List<PlaneBooking> planes;
     private List<TrainBooking> trains;
     private List<BusBooking> buses;
     private String loggedInUser;
-    private int bookingIdCounter = 1;
+    private int bookingIdCounter = 1; // Counter for generating unique booking IDs
 
-    // Add RouteDataManager instance
+    // Instance of RouteDataManager to access route info
     private final RouteDataManager routeDataManager;
 
+    /**
+     * Constructor for BookingSystem.
+     * Initializes vehicle lists, loads route data, and loads existing bookings.
+     */
     public BookingSystem() {
-        // Initialize RouteDataManager first
+        // Initialize RouteDataManager first to load data files
         routeDataManager = new RouteDataManager();
 
+        // Initialize vehicle lists
         planes = new ArrayList<>();
         trains = new ArrayList<>();
         buses = new ArrayList<>();
 
-        // Add some default vehicles (These act as placeholders now)
-        // Consider giving them more descriptive IDs if possible
-        planes.add(new PlaneBooking("FL-A320-1", this)); // Example: Generic Airbus A320 #1
-        planes.add(new PlaneBooking("FL-B737-1", this)); // Example: Generic Boeing 737 #1
-        trains.add(new TrainBooking("TR-EXP-1", this)); // Example: Generic Express Train #1
-        trains.add(new TrainBooking("TR-RAJ-1", this)); // Example: Generic Rajdhani-type Train #1
-        buses.add(new BusBooking("BS-VOLVO-1", this)); // Example: Generic Volvo Bus #1
-        buses.add(new BusBooking("BS-SLEEPER-1", this)); // Example: Generic Sleeper Bus #1
+        // Add placeholder vehicle instances (can be enhanced later)
+        // Consider more descriptive IDs
+        planes.add(new PlaneBooking("FL-A320-1", this));
+        planes.add(new PlaneBooking("FL-B737-1", this));
+        trains.add(new TrainBooking("TR-EXP-1", this));
+        trains.add(new TrainBooking("TR-RAJ-1", this));
+        buses.add(new BusBooking("BS-VOLVO-1", this));
+        buses.add(new BusBooking("BS-SLEEPER-1", this));
 
-        // Load existing bookings from bookings.txt
+        // Load existing bookings from storage
         StorageManager.loadBookings(planes, trains, buses);
 
-        // Update bookingIdCounter based on loaded bookings
+        // Set the booking ID counter based on loaded bookings
         updateBookingIdCounter();
     }
 
-    // Helper method to set the counter after loading bookings
+    /**
+     * Updates the booking ID counter to ensure new IDs are unique.
+     * Finds the maximum existing numeric ID part and sets the counter to the next value.
+     */
     private void updateBookingIdCounter() {
         int maxId = 0;
+        // Create a temporary list to hold all booking maps
         List<Map<String, ?>> allBookingMaps = new ArrayList<>();
         planes.forEach(p -> allBookingMaps.add(p.getBookings()));
         trains.forEach(t -> allBookingMaps.add(t.getBookings()));
         buses.forEach(b -> allBookingMaps.add(b.getBookings()));
 
+        // Iterate through all bookings to find the highest ID number
         for (Map<String, ?> bookingMap : allBookingMaps) {
             for (String bookingId : bookingMap.keySet()) {
                 try {
+                    // Extract number part (e.g., P1 -> 1, T10 -> 10)
+                    // Assumes ID format is Letter + Number
                     int idNum = Integer.parseInt(bookingId.substring(1));
                     if (idNum > maxId) {
                         maxId = idNum;
                     }
-                } catch (NumberFormatException | IndexOutOfBoundsException e) { /* ignore */ }
+                } catch (NumberFormatException | IndexOutOfBoundsException e) {
+                    // Ignore IDs that don't fit the expected format during counter update
+                    System.err.println(Utils.YELLOW + "Warning: Could not parse booking ID for counter update: " + bookingId + Utils.RESET);
+                }
             }
         }
+        // Set the counter to one greater than the highest found ID
         this.bookingIdCounter = maxId + 1;
-        System.out.println("\033[0;90mBooking ID counter initialized to: " + this.bookingIdCounter + "\033[0m");
+        System.out.println(Utils.GREY + "Booking ID counter initialized to: " + this.bookingIdCounter + Utils.RESET); // Debug message
     }
 
-
+    /**
+     * Sets the username of the currently logged-in user.
+     * @param username The username.
+     */
     public void setLoggedInUser(String username) {
         this.loggedInUser = username;
     }
 
+    /**
+     * Generates the next unique booking ID with the given prefix.
+     * @param prefix The prefix ("P", "T", or "B").
+     * @return The generated booking ID string (e.g., "P101").
+     */
     public int getNextBookingId(String prefix) {
+        // Simple incrementing counter. In a real system, might need more robust generation.
         return bookingIdCounter++;
     }
 
-    // startBooking method (no changes needed here)
+    // --- Getters for vehicle lists (needed for saving data in Main) ---
+    public List<PlaneBooking> getPlanes() { return this.planes; }
+    public List<TrainBooking> getTrains() { return this.trains; }
+    public List<BusBooking> getBuses() { return this.buses; }
+
+    /**
+     * Starts the main booking menu loop for the logged-in user.
+     * @param sc Scanner object for user input.
+     */
     public void startBooking(Scanner sc) {
         while (true) {
             Utils.clearScreen();
-            Utils.printBanner("Booking Menu");
-            System.out.println("\033[1;33m1.\033[0m Book a Ticket");
-            System.out.println("\033[1;33m2.\033[0m View My Bookings");
-            System.out.println("\033[1;33m3.\033[0m Cancel a Booking");
-            System.out.println("\033[1;33m4.\033[0m Logout");
-            System.out.print("\033[1mChoose an option: \033[0m");
+            Utils.printBanner(loggedInUser + "'s Booking Menu"); // Personalized banner
+            // Styled Menu Options
+            System.out.println(Utils.YELLOW_BOLD + "1." + Utils.RESET + Utils.CYAN + " Book a Ticket" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "2." + Utils.RESET + Utils.CYAN + " View My Bookings" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "3." + Utils.RESET + Utils.CYAN + " Cancel a Booking" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "4." + Utils.RESET + Utils.CYAN + " Logout" + Utils.RESET);
+            System.out.print(Utils.WHITE_BOLD + "Choose an option: " + Utils.RESET);
+
             int choice = 0;
             try {
                 choice = sc.nextInt();
-                sc.nextLine();
+                sc.nextLine(); // Consume newline
             } catch (InputMismatchException e) {
-                System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m");
-                sc.nextLine();
+                System.out.println(Utils.RED + "Invalid input. Please enter a number." + Utils.RESET);
+                sc.nextLine(); // Consume the invalid input
                 Utils.pause(sc);
                 continue;
             } catch (Exception e) {
-                System.out.println("\033[1;31mAn error occurred: " + e.getMessage() + "\033[0m");
-                sc.nextLine();
+                System.out.println(Utils.RED + "An error occurred: " + e.getMessage() + Utils.RESET);
+                sc.nextLine(); // Consume potentially leftover input
                 Utils.pause(sc);
                 continue;
             }
 
             switch (choice) {
                 case 1:
-                    bookTicket(sc);
+                    bookTicket(sc); // This will now use the route data
+                    // Save bookings after a potential booking attempt or cancellation within bookTicket flow
                     StorageManager.saveBookings(planes, trains, buses);
                     break;
                 case 2:
@@ -110,62 +145,89 @@ public class BookingSystem {
                     break;
                 case 3:
                     cancelBooking(sc);
-                    StorageManager.saveBookings(planes, trains, buses); // Save after potential cancellation
+                    // Save bookings after a potential cancellation
+                    StorageManager.saveBookings(planes, trains, buses);
                     break;
                 case 4:
-                    System.out.println("\033[1;32mLogging out...\033[0m");
-                    return;
+                    System.out.println(Utils.GREEN + "\nLogging out..." + Utils.RESET);
+                    // Saving should ideally happen in Main after this returns, or before returning
+                    // StorageManager.saveBookings(planes, trains, buses); // Optional save here
+                    return; // Exit the booking menu loop
                 default:
-                    System.out.println("\033[1;31mInvalid option. Try again.\033[0m");
-                    Utils.pause(sc);
+                    System.out.println(Utils.RED + "Invalid option. Try again." + Utils.RESET);
+                    Utils.pause(sc); // Pause only needed for invalid option
             }
+            // Removed pause from end of loop - handled within methods/cases
         }
     }
 
-    // bookTicket method (no changes needed here)
+    /**
+     * Displays the menu for selecting the mode of transportation.
+     * @param sc Scanner object for user input.
+     */
     private void bookTicket(Scanner sc) {
         while (true) {
             Utils.clearScreen();
             Utils.printBanner("Select Mode of Transportation");
-            System.out.println("\033[1;33m1.\033[0m Plane");
-            System.out.println("\033[1;33m2.\033[0m Train");
-            System.out.println("\033[1;33m3.\033[0m Bus");
-            System.out.println("\033[1;33m0.\033[0m Back to Main Menu");
-            System.out.print("\033[1mEnter choice: \033[0m");
+            // Styled Menu Options
+            System.out.println(Utils.YELLOW_BOLD + "1." + Utils.RESET + Utils.CYAN + " Plane" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "2." + Utils.RESET + Utils.CYAN + " Train" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "3." + Utils.RESET + Utils.CYAN + " Bus" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back to Booking Menu" + Utils.RESET);
+            System.out.print(Utils.WHITE_BOLD + "Enter choice: " + Utils.RESET);
+
             int transportChoice = 0;
             try {
                 transportChoice = sc.nextInt();
-                sc.nextLine();
+                sc.nextLine(); // Consume newline
             } catch (InputMismatchException e) {
-                System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m");
-                sc.nextLine();
+                System.out.println(Utils.RED + "Invalid input. Please enter a number." + Utils.RESET);
+                sc.nextLine(); // Consume invalid input
                 Utils.pause(sc);
-                continue;
+                continue; // Loop back to ask for transport type
             } catch (Exception e) {
-                System.out.println("\033[1;31mAn error occurred: " + e.getMessage() + "\033[0m");
+                System.out.println(Utils.RED + "An error occurred: " + e.getMessage() + Utils.RESET);
                 sc.nextLine();
                 Utils.pause(sc);
                 continue;
             }
 
+            // Call the specific booking method or return
             switch (transportChoice) {
-                case 1: selectAndBookPlane(sc); return;
-                case 2: selectAndBookTrain(sc); return;
-                case 3: selectAndBookBus(sc); return;
-                case 0: return;
+                case 1:
+                    selectAndBookPlane(sc);
+                    return; // Return to booking menu after attempting plane booking
+                case 2:
+                    selectAndBookTrain(sc);
+                    return; // Return after attempting train booking
+                case 3:
+                    selectAndBookBus(sc);
+                    return; // Return after attempting bus booking
+                case 0:
+                    return; // Go back to the previous menu
                 default:
-                    System.out.println("\033[1;31mInvalid option.\033[0m");
-                    Utils.pause(sc);
+                    System.out.println(Utils.RED + "Invalid option." + Utils.RESET);
+                    Utils.pause(sc); // Pause only for invalid option
             }
         }
     }
 
 
-    // selectValidRoute method (no changes needed here)
+    /**
+     * Prompts the user to select a valid route (origin and destination)
+     * using data loaded from files for a specific transport type.
+     * Uses colors for better visual guidance.
+     *
+     * @param sc Scanner for input.
+     * @param transportType "Plane", "Train", or "Bus".
+     * @return An Object array [String originCityName, String destinationCityName, RouteDetail routeDetail]
+     * or null if the user chooses to go back or an error occurs.
+     */
     private Object[] selectValidRoute(Scanner sc, String transportType) {
         Map<String, LocationInfo> locationData;
         String locationTypeName;
 
+        // Determine which data map and name to use
         switch (transportType) {
             case "Plane":
                 locationData = routeDataManager.getAirportData();
@@ -179,271 +241,322 @@ public class BookingSystem {
                 locationData = routeDataManager.getBusStationData();
                 locationTypeName = "Bus Station";
                 break;
-            default: return null; // Should not happen
+            default:
+                System.err.println(Utils.RED_BOLD + "Internal Error: Invalid transport type specified." + Utils.RESET);
+                return null;
         }
 
+        // Check if data was loaded
         if (locationData == null || locationData.isEmpty()) {
-            System.out.println("\033[1;31mError: No " + locationTypeName + " data loaded.\033[0m");
+            System.out.println(Utils.RED + "Error: No " + locationTypeName + " data loaded. Cannot proceed." + Utils.RESET);
             Utils.pause(sc);
             return null;
         }
 
-        List<String> originCities = new ArrayList<>(locationData.keySet());
-        Collections.sort(originCities);
+        // Get and sort origin city keys (UPPERCASE)
+        List<String> originCityKeys = new ArrayList<>(locationData.keySet());
+        Collections.sort(originCityKeys);
 
         // --- Select Origin City ---
-        int originChoice = -1;
         LocationInfo selectedOriginInfo = null;
         while (selectedOriginInfo == null) {
             Utils.clearScreen();
             Utils.printBanner("Select Origin " + locationTypeName);
-            System.out.println("\033[1;33m0.\033[0m Back");
-            for (int i = 0; i < originCities.size(); i++) {
-                String cityName = locationData.get(originCities.get(i)).city();
-                String primaryName = locationData.get(originCities.get(i)).primaryName();
-                System.out.printf("\033[1;33m%d.\033[0m %s (%s)\n", i + 1, cityName, primaryName);
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back" + Utils.RESET);
+            // Display numbered list of origin cities
+            for (int i = 0; i < originCityKeys.size(); i++) {
+                // Retrieve LocationInfo using the key
+                LocationInfo info = locationData.get(originCityKeys.get(i));
+                // Display City Name (proper case) and Primary Station Name
+                System.out.printf(Utils.YELLOW_BOLD + "%d." + Utils.RESET + Utils.CYAN + " %s (%s)" + Utils.RESET + "\n",
+                        i + 1, info.city(), info.primaryName());
             }
-            System.out.print("\033[1mChoose origin city number: \033[0m");
+            System.out.print(Utils.WHITE_BOLD + "Choose origin city number: " + Utils.RESET);
 
             try {
-                originChoice = sc.nextInt();
-                sc.nextLine();
-                if (originChoice == 0) return null;
-                if (originChoice >= 1 && originChoice <= originCities.size()) {
-                    selectedOriginInfo = locationData.get(originCities.get(originChoice - 1));
+                int originChoice = sc.nextInt();
+                sc.nextLine(); // Consume newline
+
+                if (originChoice == 0) return null; // User chose back
+
+                // Validate choice range
+                if (originChoice >= 1 && originChoice <= originCityKeys.size()) {
+                    // Get the selected LocationInfo using the key from the sorted list
+                    selectedOriginInfo = locationData.get(originCityKeys.get(originChoice - 1));
+                    // Check if the selected origin has any routes defined
                     if (selectedOriginInfo.routes() == null || selectedOriginInfo.routes().isEmpty()) {
-                        System.out.println("\033[1;31mNo routes available from " + selectedOriginInfo.city() + ". Please choose a different origin.\033[0m");
-                        selectedOriginInfo = null;
+                        System.out.println(Utils.YELLOW + "No routes available from " + selectedOriginInfo.city() + ". Please choose a different origin." + Utils.RESET);
+                        selectedOriginInfo = null; // Reset to loop again
                         Utils.pause(sc);
                     }
-                } else { System.out.println("\033[1;31mInvalid choice.\033[0m"); Utils.pause(sc); }
-            } catch (InputMismatchException e) { System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m"); sc.nextLine(); Utils.pause(sc); }
-            catch (Exception e) { System.out.println("\033[1;31mAn error occurred: " + e.getMessage() + "\033[0m"); sc.nextLine(); Utils.pause(sc); }
-        }
+                    // If routes exist, loop terminates as selectedOriginInfo is no longer null
+                } else {
+                    System.out.println(Utils.RED + "Invalid choice. Please enter a number from the list." + Utils.RESET);
+                    Utils.pause(sc);
+                }
+            } catch (InputMismatchException e) {
+                System.out.println(Utils.RED + "Invalid input. Please enter a number." + Utils.RESET);
+                sc.nextLine(); // Consume invalid input
+                Utils.pause(sc);
+            } catch (Exception e) { // Catch other potential errors
+                System.out.println(Utils.RED + "An error occurred during origin selection: " + e.getMessage() + Utils.RESET);
+                sc.nextLine(); // Consume potentially leftover input
+                Utils.pause(sc);
+            }
+        } // End origin selection loop
 
         // --- Select Destination City ---
         Map<String, RouteDetail> availableRoutes = selectedOriginInfo.routes();
-        List<String> destinationKeys = new ArrayList<>(availableRoutes.keySet()); // Keys are UPPERCASE city names
+        // Get destination keys (UPPERCASE city names) and sort them
+        List<String> destinationKeys = new ArrayList<>(availableRoutes.keySet());
         Collections.sort(destinationKeys);
 
-        int destChoice = -1;
         RouteDetail selectedRouteDetail = null;
-        String selectedDestCityKey = null; // Store the chosen key
-
+        // Loop until a valid destination is selected
         while (selectedRouteDetail == null) {
             Utils.clearScreen();
             Utils.printBanner("Select Destination from " + selectedOriginInfo.city());
-            System.out.println("\033[1;33m0.\033[0m Back to Origin Selection");
-            int validRouteCount = 0;
-            List<String> displayOrderDestKeys = new ArrayList<>();
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back to Origin Selection" + Utils.RESET);
 
-            for (String destKey : destinationKeys) { // Iterate using sorted keys
+            int validRouteCount = 0; // Counter for actually displayable routes
+            List<String> displayOrderDestKeys = new ArrayList<>(); // Store keys in the order they are displayed
+
+            // Iterate through sorted destination keys
+            for (String destKey : destinationKeys) {
                 RouteDetail route = availableRoutes.get(destKey);
-                // Check if route is valid for this transport mode (distance > -1 or not 'Not Available' ETA)
+                // Check if route is valid/available for this transport mode
                 boolean isAvailable = route.distance() > -1 || !route.eta().equalsIgnoreCase("Not Available");
 
                 if (isAvailable) {
                     validRouteCount++;
-                    displayOrderDestKeys.add(destKey); // Store the key in display order
-                    String destCityName = route.destinationCity(); // Get display name from RouteDetail
+                    displayOrderDestKeys.add(destKey); // Add key to list for later retrieval by index
+                    String destCityName = route.destinationCity(); // Use proper case name from RouteDetail
                     String eta = route.eta();
                     int distance = route.distance();
-                    System.out.printf("\033[1;33m%d.\033[0m %s (\033[1;33m%d km\033[0m, ETA: \033[1;32m%s\033[0m)\n",
+                    // Display formatted route option with colors
+                    System.out.printf(Utils.YELLOW_BOLD + "%d." + Utils.RESET + Utils.CYAN + " %s (" + Utils.BLUE_BOLD + "Dist:" + Utils.MAGENTA_BOLD + " %d km" + Utils.CYAN + ", ETA: " + Utils.GREEN_BOLD + "%s" + Utils.CYAN + ")" + Utils.RESET + "\n",
                             validRouteCount, destCityName, distance, eta);
                 }
             }
 
+            // Handle case where no valid destinations were found after filtering
             if (validRouteCount == 0) {
-                System.out.println("\033[1;31mNo valid destinations found from " + selectedOriginInfo.city() + " for " + transportType + "s.\033[0m");
+                System.out.println(Utils.YELLOW + "No valid destinations found from " + selectedOriginInfo.city() + " for " + transportType + "s." + Utils.RESET);
                 Utils.pause(sc);
-                return null; // Go back if no valid destinations
+                // Returning null might force user back too far, let's retry origin selection
+                // return null;
+                return selectValidRoute(sc, transportType); // Go back to origin selection
             }
 
-            System.out.print("\033[1mChoose destination city number: \033[0m");
+            System.out.print(Utils.WHITE_BOLD + "Choose destination city number: " + Utils.RESET);
 
             try {
-                destChoice = sc.nextInt();
-                sc.nextLine();
-                if (destChoice == 0) return selectValidRoute(sc, transportType); // Recursive call to go back
+                int destChoice = sc.nextInt();
+                sc.nextLine(); // Consume newline
 
+                if (destChoice == 0) return selectValidRoute(sc, transportType); // Go back to origin selection
+
+                // Validate choice based on the number of *displayed* routes
                 if (destChoice >= 1 && destChoice <= validRouteCount) {
-                    selectedDestCityKey = displayOrderDestKeys.get(destChoice - 1); // Get the key from the displayed list index
-                    selectedRouteDetail = availableRoutes.get(selectedDestCityKey); // Get the detail using the key
-                } else { System.out.println("\033[1;31mInvalid choice.\033[0m"); Utils.pause(sc); }
-            } catch (InputMismatchException e) { System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m"); sc.nextLine(); Utils.pause(sc); }
-            catch (Exception e) { System.out.println("\033[1;31mAn error occurred: " + e.getMessage() + "\033[0m"); sc.nextLine(); Utils.pause(sc); }
-        }
+                    // Get the actual destination key using the display index
+                    String selectedDestCityKey = displayOrderDestKeys.get(destChoice - 1);
+                    // Retrieve the corresponding RouteDetail using the key
+                    selectedRouteDetail = availableRoutes.get(selectedDestCityKey);
+                    // If successful, loop condition becomes false, loop terminates
+                } else {
+                    System.out.println(Utils.RED + "Invalid choice. Please enter a number from the list." + Utils.RESET);
+                    Utils.pause(sc);
+                }
+            } catch (InputMismatchException e) {
+                System.out.println(Utils.RED + "Invalid input. Please enter a number." + Utils.RESET);
+                sc.nextLine(); // Consume invalid input
+                Utils.pause(sc);
+            } catch (Exception e) {
+                System.out.println(Utils.RED + "An error occurred during destination selection: " + e.getMessage() + Utils.RESET);
+                sc.nextLine();
+                Utils.pause(sc);
+            }
+        } // End destination selection loop
 
-        // Return origin city name, destination city name, and the route details
+        // Return origin city name (proper case), destination city name (proper case), and the route details
         return new Object[]{selectedOriginInfo.city(), selectedRouteDetail.destinationCity(), selectedRouteDetail};
     }
 
 
     // --- Updated Booking Methods ---
 
+    /**
+     * Handles the process for selecting and booking a plane ticket.
+     * Uses RouteDataManager for route selection and displays provider info.
+     * @param sc Scanner object for user input.
+     */
     private void selectAndBookPlane(Scanner sc) {
         Utils.clearScreen();
         Object[] selectedRoute = selectValidRoute(sc, "Plane");
 
         if (selectedRoute == null) {
-            System.out.println("\033[1;33mRoute selection cancelled.\033[0m");
-            Utils.pause(sc);
-            return;
+            System.out.println(Utils.YELLOW + "Route selection cancelled." + Utils.RESET);
+            // Don't pause here, let the calling menu handle flow
+            return; // User chose back
         }
 
+        // Extract route details
         String startCity = (String) selectedRoute[0];
         String destCity = (String) selectedRoute[1];
         RouteDetail routeDetail = (RouteDetail) selectedRoute[2];
         int distance = routeDetail.distance();
         String eta = routeDetail.eta();
-        List<String> providers = routeDetail.providers(); // Get providers for this route
+        List<String> providers = routeDetail.providers(); // Get providers for this specific route
 
+        // Calculate base price using actual distance
         double basePrice = Utils.calculatePrice("Plane", distance);
-        if (basePrice <= 0 && distance > 0) { // Allow 0 distance routes potentially? Check logic. If distance=0 price is 0.
-            System.out.println("\033[1;31mError calculating price (Rs. " + basePrice + ") for the selected route ("+distance+" km).\033[0m");
+        // Basic check for valid price calculation (could be 0 if distance is 0)
+        if (basePrice < 0 || (basePrice == 0 && distance > 0)) {
+            System.out.println(Utils.RED + "Error calculating price for the selected route ("+distance+" km)." + Utils.RESET);
             Utils.pause(sc);
             return;
         }
 
-        Utils.printBanner("Selected Route");
-        System.out.println("\033[1mFrom:\033[0m " + startCity);
-        System.out.println("\033[1mTo:\033[0m " + destCity);
-        System.out.println("\033[1mDistance:\033[0m \033[1;33m" + distance + " km\033[0m");
-        System.out.println("\033[1mEstimated Travel Time:\033[0m \033[1;32m" + eta + "\033[0m");
+        // Display selected route info with styling
+        Utils.printBanner("Selected Route: " + startCity + " -> " + destCity);
+        System.out.println(Utils.BLUE_BOLD + "Distance:           " + Utils.MAGENTA_BOLD + distance + " km" + Utils.RESET);
+        System.out.println(Utils.BLUE_BOLD + "Est. Travel Time:   " + Utils.GREEN_BOLD + eta + Utils.RESET);
 
-        // --- *** ADDED: Display Providers *** ---
+        // Display Providers found in the data file for this route
         if (providers != null && !providers.isEmpty()) {
-            System.out.println("\033[1mAvailable Airlines/Services:\033[0m \033[0;35m" + String.join(", ", providers) + "\033[0m");
+            System.out.println(Utils.BLUE_BOLD + "Airlines/Services: " + Utils.MAGENTA + String.join(", ", providers) + Utils.RESET);
         } else {
-            System.out.println("\033[1;33mNo specific provider information available for this route.\033[0m");
+            System.out.println(Utils.YELLOW + "No specific provider information listed for this route." + Utils.RESET);
         }
-        // --- *** END OF ADDED CODE *** ---
+        System.out.println(); // Add a blank line for spacing
 
-        // --- Continue with existing logic for date, class, plane selection ---
-        // Use Utils.getValidTravelDate for date input
+        // Get Valid Travel Date using Util method
         String travelDate = Utils.getValidTravelDate(sc);
-        if (travelDate == null) { // Handle 'back'
-            System.out.println("\033[1;33mBooking cancelled.\033[0m");
+        if (travelDate == null) { // Handle if user entered 'back'
+            System.out.println(Utils.YELLOW + "\nBooking cancelled during date selection." + Utils.RESET);
+            Utils.pause(sc);
             return;
         }
 
-
-        // Select class
+        // Select Class
         double classMultiplier = 1.0;
         String seatClass = "";
         while (seatClass.isEmpty()) {
-            System.out.println("\n\033[1;36mChoose Seat Class:\033[0m");
-            System.out.printf("\033[1;33m1.\033[0m Economy (Base Price: Rs. %.2f)\n", basePrice * 1.0);
-            System.out.printf("\033[1;33m2.\033[0m Business (Base Price: Rs. %.2f)\n", basePrice * 2.0);
-            System.out.printf("\033[1;33m3.\033[0m First (Base Price: Rs. %.2f)\n", basePrice * 3.0);
-            System.out.println("\033[1;33m0.\033[0m Back");
-            System.out.print("\033[1mEnter choice: \033[0m");
+            System.out.println("\n" + Utils.CYAN_BOLD + "Choose Seat Class:" + Utils.RESET);
+            // Display class options with calculated prices
+            System.out.printf(Utils.YELLOW_BOLD + "1." + Utils.RESET + Utils.CYAN + " Economy (Base Price: Rs. %.2f)" + Utils.RESET + "\n", basePrice * 1.0);
+            System.out.printf(Utils.YELLOW_BOLD + "2." + Utils.RESET + Utils.CYAN + " Business (Base Price: Rs. %.2f)" + Utils.RESET + "\n", basePrice * 2.0);
+            System.out.printf(Utils.YELLOW_BOLD + "3." + Utils.RESET + Utils.CYAN + " First (Base Price: Rs. %.2f)" + Utils.RESET + "\n", basePrice * 3.0);
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back" + Utils.RESET);
+            System.out.print(Utils.WHITE_BOLD + "Enter choice: " + Utils.RESET);
             try {
                 int classChoice = sc.nextInt();
-                sc.nextLine();
+                sc.nextLine(); // Consume newline
                 switch (classChoice) {
                     case 1: seatClass = "Economy"; classMultiplier = 1.0; break;
                     case 2: seatClass = "Business"; classMultiplier = 2.0; break;
                     case 3: seatClass = "First"; classMultiplier = 3.0; break;
-                    case 0: return; // Go back
-                    default: System.out.println("\033[1;31mInvalid class choice.\033[0m"); Utils.pause(sc); continue;
+                    case 0: System.out.println(Utils.YELLOW + "Booking cancelled." + Utils.RESET); Utils.pause(sc); return; // Go back
+                    default: System.out.println(Utils.RED + "Invalid class choice." + Utils.RESET); Utils.pause(sc); continue; // Ask again
                 }
             } catch (InputMismatchException e) {
-                System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m");
-                sc.nextLine(); Utils.pause(sc);
+                System.out.println(Utils.RED + "Invalid input. Please enter a number." + Utils.RESET);
+                sc.nextLine(); // Consume invalid input
+                Utils.pause(sc);
             }
         }
-        double finalRoutePrice = basePrice * classMultiplier;
+        double finalRoutePrice = basePrice * classMultiplier; // Final price adjusted for class
 
 
-        // Select Plane (Presenting generic vehicle IDs after showing providers)
+        // Select Plane Instance (Placeholder selection)
         if (planes.isEmpty()) {
-            System.out.println("\033[1;31mSorry, no planes are currently configured in the system.\033[0m");
+            System.out.println(Utils.RED + "Sorry, no planes are currently configured in the system." + Utils.RESET);
             Utils.pause(sc);
             return;
         }
 
         PlaneBooking selectedPlane = null;
         while(selectedPlane == null) {
-            Utils.printBanner("Select Specific Plane/Aircraft"); // Changed title slightly
-            System.out.println("\033[1;36m(The actual airline service is listed above)\033[0m"); // Remind user
-            System.out.println("\033[1;33m0.\033[0m Back");
+            Utils.printBanner("Select Specific Plane/Aircraft");
+            System.out.println(Utils.YELLOW + "(Note: Specific airline services shown above for this route)" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back" + Utils.RESET);
             for (int i = 0; i < planes.size(); i++) {
-                System.out.println("\033[1;33m" + (i + 1) + ".\033[0m Aircraft ID: " + planes.get(i).getFlightId()); // Changed label
+                // Display available placeholder aircraft IDs
+                System.out.println(Utils.YELLOW_BOLD + (i + 1) + "." + Utils.RESET + Utils.CYAN + " Aircraft ID: " + planes.get(i).getFlightId() + Utils.RESET);
             }
-            System.out.print("\033[1mEnter aircraft number to book on: \033[0m"); // Changed prompt
+            System.out.print(Utils.WHITE_BOLD + "Enter aircraft number to book on: " + Utils.RESET);
             try {
                 int flightChoice = sc.nextInt();
-                sc.nextLine();
-                if (flightChoice == 0) return;
+                sc.nextLine(); // Consume newline
+                if (flightChoice == 0) { System.out.println(Utils.YELLOW+"Booking cancelled."+Utils.RESET); Utils.pause(sc); return; } // Go back
                 if (flightChoice >= 1 && flightChoice <= planes.size()) {
-                    selectedPlane = planes.get(flightChoice - 1);
+                    selectedPlane = planes.get(flightChoice - 1); // Select the chosen placeholder
                 } else {
-                    System.out.println("\033[1;31mInvalid aircraft selection.\033[0m");
+                    System.out.println(Utils.RED + "Invalid aircraft selection." + Utils.RESET);
                     Utils.pause(sc);
                 }
             } catch (InputMismatchException e) {
-                System.out.println("\033[1;31mInvalid input. Please enter a number.\033[0m");
-                sc.nextLine(); Utils.pause(sc);
+                System.out.println(Utils.RED + "Invalid input. Please enter a number." + Utils.RESET);
+                sc.nextLine(); // Consume invalid input
+                Utils.pause(sc);
             }
         }
 
-        // Call book method (which now includes passenger validation)
+        // Call the book method of the selected PlaneBooking instance
+        // This method now includes passenger input validation
         selectedPlane.book(sc, loggedInUser, startCity, destCity, finalRoutePrice, seatClass, travelDate);
-        Utils.pause(sc); // Pause after booking attempt
+        // Pause is handled within the PlaneBooking.book or after returning here if needed
+        Utils.pause(sc); // Pause after the booking process completes or fails in book()
 
     }
 
-    // --- selectAndBookTrain ---
+    /**
+     * Handles the process for selecting and booking a train ticket.
+     * Uses RouteDataManager, displays providers, uses validation.
+     * @param sc Scanner object for user input.
+     */
     private void selectAndBookTrain(Scanner sc) {
         Utils.clearScreen();
         Object[] selectedRoute = selectValidRoute(sc, "Train");
 
-        if (selectedRoute == null) { /* ... handle cancellation ... */ return; }
+        if (selectedRoute == null) { System.out.println(Utils.YELLOW + "Route selection cancelled." + Utils.RESET); return; }
 
         String startCity = (String) selectedRoute[0];
         String destCity = (String) selectedRoute[1];
         RouteDetail routeDetail = (RouteDetail) selectedRoute[2];
         int distance = routeDetail.distance();
         String eta = routeDetail.eta();
-        List<String> providers = routeDetail.providers(); // Get providers
+        List<String> providers = routeDetail.providers();
 
         double basePrice = Utils.calculatePrice("Train", distance);
-        if (basePrice <= 0 && distance > 0) { /* ... handle price error ... */ return; }
+        if (basePrice < 0 || (basePrice == 0 && distance > 0)) { System.out.println(Utils.RED + "Error calculating price." + Utils.RESET); Utils.pause(sc); return; }
 
-        Utils.printBanner("Selected Route");
-        System.out.println("\033[1mFrom:\033[0m " + startCity);
-        System.out.println("\033[1mTo:\033[0m " + destCity);
-        System.out.println("\033[1mDistance:\033[0m \033[1;33m" + distance + " km\033[0m");
-        System.out.println("\033[1mEstimated Travel Time:\033[0m \033[1;32m" + eta + "\033[0m");
-
-        // --- *** ADDED: Display Providers *** ---
+        // Display route and provider info
+        Utils.printBanner("Selected Route: " + startCity + " -> " + destCity);
+        System.out.println(Utils.BLUE_BOLD + "Distance:           " + Utils.MAGENTA_BOLD + distance + " km" + Utils.RESET);
+        System.out.println(Utils.BLUE_BOLD + "Est. Travel Time:   " + Utils.GREEN_BOLD + eta + Utils.RESET);
         if (providers != null && !providers.isEmpty()) {
-            System.out.println("\033[1mAvailable Trains/Services:\033[0m \033[0;35m" + String.join(", ", providers) + "\033[0m");
-        } else {
-            System.out.println("\033[1;33mNo specific provider information available for this route.\033[0m");
-        }
-        // --- *** END OF ADDED CODE *** ---
+            System.out.println(Utils.BLUE_BOLD + "Trains/Services:   " + Utils.MAGENTA + String.join(", ", providers) + Utils.RESET);
+        } else { System.out.println(Utils.YELLOW + "No specific provider info listed." + Utils.RESET); }
+        System.out.println();
 
-        // Use Utils.getValidTravelDate
+        // Get Travel Date
         String travelDate = Utils.getValidTravelDate(sc);
-        if (travelDate == null) { return; } // Handle 'back'
+        if (travelDate == null) { System.out.println(Utils.YELLOW + "\nBooking cancelled." + Utils.RESET); Utils.pause(sc); return; }
 
-        // Select class
+        // Select Class
         double classMultiplier = 1.0;
         String seatClass = "";
         while (seatClass.isEmpty()) {
-            System.out.println("\n\033[1;36mChoose Class:\033[0m");
-            // (Display train classes and prices as before)
-            System.out.printf("\033[1;33m1.\033[0m AC First Class (1A) (Rs. %.2f)\n", basePrice * 2.5);
-            System.out.printf("\033[1;33m2.\033[0m Second AC (2A) (Rs. %.2f)\n", basePrice * 2.0);
-            System.out.printf("\033[1;33m3.\033[0m Third AC (3A) (Rs. %.2f)\n", basePrice * 1.5);
-            System.out.printf("\033[1;33m4.\033[0m Sleeper Class (SL) (Rs. %.2f)\n", basePrice * 1.0);
-            System.out.printf("\033[1;33m5.\033[0m Chair Car (CC) (Rs. %.2f)\n", basePrice * 0.8);
-            System.out.printf("\033[1;33m6.\033[0m Second Seater (2S) (Rs. %.2f)\n", basePrice * 0.5);
-            System.out.println("\033[1;33m0.\033[0m Back");
-            System.out.print("\033[1mEnter choice: \033[0m");
-
+            System.out.println("\n" + Utils.CYAN_BOLD + "Choose Class:" + Utils.RESET);
+            System.out.printf(Utils.YELLOW_BOLD + "1." + Utils.RESET + Utils.CYAN + " AC First Class (1A) (Rs. %.2f)" + Utils.RESET + "\n", basePrice * 2.5);
+            System.out.printf(Utils.YELLOW_BOLD + "2." + Utils.RESET + Utils.CYAN + " Second AC (2A)      (Rs. %.2f)" + Utils.RESET + "\n", basePrice * 2.0);
+            System.out.printf(Utils.YELLOW_BOLD + "3." + Utils.RESET + Utils.CYAN + " Third AC (3A)       (Rs. %.2f)" + Utils.RESET + "\n", basePrice * 1.5);
+            System.out.printf(Utils.YELLOW_BOLD + "4." + Utils.RESET + Utils.CYAN + " Sleeper Class (SL)  (Rs. %.2f)" + Utils.RESET + "\n", basePrice * 1.0);
+            System.out.printf(Utils.YELLOW_BOLD + "5." + Utils.RESET + Utils.CYAN + " Chair Car (CC)      (Rs. %.2f)" + Utils.RESET + "\n", basePrice * 0.8);
+            System.out.printf(Utils.YELLOW_BOLD + "6." + Utils.RESET + Utils.CYAN + " Second Seater (2S)  (Rs. %.2f)" + Utils.RESET + "\n", basePrice * 0.5);
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back" + Utils.RESET);
+            System.out.print(Utils.WHITE_BOLD + "Enter choice: " + Utils.RESET);
             try {
                 int classChoice = sc.nextInt();
                 sc.nextLine();
@@ -454,163 +567,199 @@ public class BookingSystem {
                     case 4: seatClass = "Sleeper Class (SL)"; classMultiplier = 1.0; break;
                     case 5: seatClass = "Chair Car (CC)"; classMultiplier = 0.8; break;
                     case 6: seatClass = "Second Seater (2S)"; classMultiplier = 0.5; break;
-                    case 0: return; // Go back
-                    default: System.out.println("\033[1;31mInvalid class choice.\033[0m"); Utils.pause(sc); continue;
+                    case 0: System.out.println(Utils.YELLOW + "Booking cancelled." + Utils.RESET); Utils.pause(sc); return;
+                    default: System.out.println(Utils.RED + "Invalid class choice." + Utils.RESET); Utils.pause(sc); continue;
                 }
-            } catch (InputMismatchException e) { /* ... handle error ... */ }
+            } catch (InputMismatchException e) { System.out.println(Utils.RED + "Invalid input..." + Utils.RESET); sc.nextLine(); Utils.pause(sc); }
         }
         double finalRoutePrice = basePrice * classMultiplier;
 
-        // Select Train (Presenting generic IDs after showing providers)
-        if (trains.isEmpty()) { /* ... handle no trains ... */ return; }
+        // Select Train Instance
+        if (trains.isEmpty()) { System.out.println(Utils.RED + "No trains configured." + Utils.RESET); Utils.pause(sc); return; }
         TrainBooking selectedTrain = null;
         while(selectedTrain == null) {
             Utils.printBanner("Select Specific Train");
-            System.out.println("\033[1;36m(The actual train service is listed above)\033[0m");
-            System.out.println("\033[1;33m0.\033[0m Back");
+            System.out.println(Utils.YELLOW + "(Note: Specific train services shown above)" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back" + Utils.RESET);
             for (int i = 0; i < trains.size(); i++) {
-                System.out.println("\033[1;33m" + (i + 1) + ".\033[0m Train ID: " + trains.get(i).getTrainId());
+                System.out.println(Utils.YELLOW_BOLD + (i + 1) + "." + Utils.RESET + Utils.CYAN + " Train ID: " + trains.get(i).getTrainId() + Utils.RESET);
             }
-            System.out.print("\033[1mEnter train number to book on: \033[0m");
+            System.out.print(Utils.WHITE_BOLD + "Enter train number to book on: " + Utils.RESET);
             try {
                 int trainChoice = sc.nextInt();
                 sc.nextLine();
-                if (trainChoice == 0) return;
+                if (trainChoice == 0) { System.out.println(Utils.YELLOW+"Booking cancelled."+Utils.RESET); Utils.pause(sc); return; }
                 if (trainChoice >= 1 && trainChoice <= trains.size()) {
                     selectedTrain = trains.get(trainChoice - 1);
-                } else { /* ... handle invalid choice ... */ }
-            } catch (InputMismatchException e) { /* ... handle error ... */ }
+                } else { System.out.println(Utils.RED + "Invalid train selection." + Utils.RESET); Utils.pause(sc); }
+            } catch (InputMismatchException e) { System.out.println(Utils.RED + "Invalid input..." + Utils.RESET); sc.nextLine(); Utils.pause(sc); }
         }
 
-        // Call book method (which now includes passenger validation)
+        // Call book method
         selectedTrain.book(sc, loggedInUser, startCity, destCity, finalRoutePrice, seatClass, travelDate);
         Utils.pause(sc);
     }
 
-    // --- selectAndBookBus ---
+    /**
+     * Handles the process for selecting and booking a bus ticket.
+     * Uses RouteDataManager, displays providers, uses validation.
+     * @param sc Scanner object for user input.
+     */
     private void selectAndBookBus(Scanner sc) {
         Utils.clearScreen();
         Object[] selectedRoute = selectValidRoute(sc, "Bus");
 
-        if (selectedRoute == null) { /* ... handle cancellation ... */ return; }
+        if (selectedRoute == null) { System.out.println(Utils.YELLOW + "Route selection cancelled." + Utils.RESET); return; }
 
         String startCity = (String) selectedRoute[0];
         String destCity = (String) selectedRoute[1];
         RouteDetail routeDetail = (RouteDetail) selectedRoute[2];
         int distance = routeDetail.distance();
         String eta = routeDetail.eta();
-        List<String> providers = routeDetail.providers(); // Get providers
+        List<String> providers = routeDetail.providers();
 
-        double routePrice = Utils.calculatePrice("Bus", distance); // Bus has only one class usually
-        if (routePrice <= 0 && distance > 0) { /* ... handle price error ... */ return; }
+        // Bus usually only has one class price
+        double routePrice = Utils.calculatePrice("Bus", distance);
+        if (routePrice < 0 || (routePrice == 0 && distance > 0)) { System.out.println(Utils.RED + "Error calculating price." + Utils.RESET); Utils.pause(sc); return; }
 
-        Utils.printBanner("Selected Route");
-        System.out.println("\033[1mFrom:\033[0m " + startCity);
-        System.out.println("\033[1mTo:\033[0m " + destCity);
-        System.out.println("\033[1mDistance:\033[0m \033[1;33m" + distance + " km\033[0m");
-        System.out.println("\033[1mEstimated Travel Time:\033[0m \033[1;32m" + eta + "\033[0m");
-
-        // --- *** ADDED: Display Providers *** ---
+        // Display route and provider info
+        Utils.printBanner("Selected Route: " + startCity + " -> " + destCity);
+        System.out.println(Utils.BLUE_BOLD + "Distance:           " + Utils.MAGENTA_BOLD + distance + " km" + Utils.RESET);
+        System.out.println(Utils.BLUE_BOLD + "Est. Travel Time:   " + Utils.GREEN_BOLD + eta + Utils.RESET);
         if (providers != null && !providers.isEmpty()) {
-            System.out.println("\033[1mAvailable Bus Operators:\033[0m \033[0;35m" + String.join(", ", providers) + "\033[0m");
-        } else {
-            System.out.println("\033[1;33mNo specific provider information available for this route.\033[0m");
-        }
-        // --- *** END OF ADDED CODE *** ---
+            System.out.println(Utils.BLUE_BOLD + "Bus Operators:     " + Utils.MAGENTA + String.join(", ", providers) + Utils.RESET);
+        } else { System.out.println(Utils.YELLOW + "No specific provider info listed." + Utils.RESET); }
+        System.out.println();
 
-        // Use Utils.getValidTravelDate
+
+        // Get Travel Date
         String travelDate = Utils.getValidTravelDate(sc);
-        if (travelDate == null) { return; } // Handle 'back'
+        if (travelDate == null) { System.out.println(Utils.YELLOW + "\nBooking cancelled." + Utils.RESET); Utils.pause(sc); return; }
 
-        // Bus usually has only 'Standard' class
+        // Bus has only 'Standard' class
         String seatClass = "Standard";
-        System.out.println("\n\033[1;36mClass:\033[0m Standard");
-        System.out.printf("\033[1mBase Price:\033[0m Rs. %.2f\n", routePrice);
+        System.out.println("\n" + Utils.CYAN_BOLD + "Class:" + Utils.CYAN + " Standard" + Utils.RESET);
+        System.out.printf(Utils.BLUE_BOLD + "Ticket Price: " + Utils.GREEN_BOLD + "Rs. %.2f" + Utils.RESET + "\n", routePrice);
 
 
-        // Select Bus (Presenting generic IDs after showing providers)
-        if (buses.isEmpty()) { /* ... handle no buses ... */ return; }
+        // Select Bus Instance
+        if (buses.isEmpty()) { System.out.println(Utils.RED + "No buses configured." + Utils.RESET); Utils.pause(sc); return; }
         BusBooking selectedBus = null;
         while (selectedBus == null) {
             Utils.printBanner("Select Specific Bus");
-            System.out.println("\033[1;36m(The actual bus operator/service is listed above)\033[0m");
-            System.out.println("\033[1;33m0.\033[0m Back");
+            System.out.println(Utils.YELLOW + "(Note: Specific bus operators shown above)" + Utils.RESET);
+            System.out.println(Utils.YELLOW_BOLD + "0." + Utils.RESET + Utils.CYAN + " Back" + Utils.RESET);
             for (int i = 0; i < buses.size(); i++) {
-                System.out.println("\033[1;33m" + (i + 1) + ".\033[0m Bus ID: " + buses.get(i).getBusId());
+                System.out.println(Utils.YELLOW_BOLD + (i + 1) + "." + Utils.RESET + Utils.CYAN + " Bus ID: " + buses.get(i).getBusId() + Utils.RESET);
             }
-            System.out.print("\033[1mEnter bus number to book on: \033[0m");
+            System.out.print(Utils.WHITE_BOLD + "Enter bus number to book on: " + Utils.RESET);
             try {
                 int busChoice = sc.nextInt();
                 sc.nextLine();
-                if (busChoice == 0) return;
+                if (busChoice == 0) { System.out.println(Utils.YELLOW+"Booking cancelled."+Utils.RESET); Utils.pause(sc); return; }
                 if (busChoice >= 1 && busChoice <= buses.size()) {
                     selectedBus = buses.get(busChoice - 1);
-                } else { /* ... handle invalid choice ... */ }
-            } catch (InputMismatchException e) { /* ... handle error ... */ }
+                } else { System.out.println(Utils.RED + "Invalid bus selection." + Utils.RESET); Utils.pause(sc); }
+            } catch (InputMismatchException e) { System.out.println(Utils.RED + "Invalid input..." + Utils.RESET); sc.nextLine(); Utils.pause(sc); }
         }
 
-        // Call book method (which now includes passenger validation)
+        // Call book method
+        // Pass the base route price directly as final price for standard class
         selectedBus.book(sc, loggedInUser, startCity, destCity, routePrice, seatClass, travelDate);
         Utils.pause(sc);
     }
 
 
-    // viewBookings method (no changes needed here)
+    /**
+     * Displays all bookings for the currently logged-in user across all transport types.
+     * @param sc Scanner object for pausing.
+     */
     private void viewBookings(Scanner sc) {
         Utils.clearScreen();
-        Utils.printBanner("Your Bookings");
+        Utils.printBanner("Your Bookings for " + loggedInUser);
         boolean foundBookings = false;
+
+        // Check planes, trains, and buses
         for (PlaneBooking plane : planes) {
-            if (plane.displayUserBookings(loggedInUser)) foundBookings = true;
+            // displayUserBookings now returns boolean and handles its own printing
+            if (plane.displayUserBookings(loggedInUser)) {
+                foundBookings = true;
+            }
         }
         for (TrainBooking train : trains) {
-            if (train.displayUserBookings(loggedInUser)) foundBookings = true;
+            if (train.displayUserBookings(loggedInUser)) {
+                foundBookings = true;
+            }
         }
         for (BusBooking bus : buses) {
-            if (bus.displayUserBookings(loggedInUser)) foundBookings = true;
+            if (bus.displayUserBookings(loggedInUser)) {
+                foundBookings = true;
+            }
         }
+
+        // Display message only if no bookings were found across all types
         if (!foundBookings) {
-            System.out.println("\033[1;33mYou have no active bookings.\033[0m");
+            System.out.println(Utils.YELLOW + "\nYou have no active bookings." + Utils.RESET);
         }
-        Utils.pause(sc);
+        Utils.pause(sc); // Pause after displaying all bookings or the message
     }
 
 
-    // cancelBooking method (no changes needed here, relies on boolean returns)
+    /**
+     * Handles the cancellation of a booking by ID.
+     * @param sc Scanner object for user input.
+     */
     private void cancelBooking(Scanner sc) {
         Utils.clearScreen();
         Utils.printBanner("Cancel Booking");
-        System.out.print("\033[1mEnter Booking ID to cancel (e.g., P1, T1, B1): \033[0m");
-        String bookingId = sc.nextLine().toUpperCase();
+        System.out.print(Utils.WHITE_BOLD + "Enter Booking ID to cancel (e.g., P1, T1, B1): " + Utils.RESET);
+        String bookingId = sc.nextLine().toUpperCase(); // Use uppercase for consistency
         boolean canceled = false;
 
         // *** REMINDER: StorageManager.removeBooking() was removed ***
+        // Cancellation happens in memory first, saved later.
 
+        // Determine type and attempt cancellation
         if (bookingId.startsWith("P")) {
             for (PlaneBooking plane : planes) {
-                if (plane.cancelBooking(bookingId, loggedInUser)) { canceled = true; break; }
+                // cancelBooking now returns boolean
+                if (plane.cancelBooking(bookingId, loggedInUser)) {
+                    canceled = true;
+                    break; // Exit loop once cancelled
+                }
             }
         } else if (bookingId.startsWith("T")) {
             for (TrainBooking train : trains) {
-                if (train.cancelBooking(bookingId, loggedInUser)) { canceled = true; break; }
+                if (train.cancelBooking(bookingId, loggedInUser)) {
+                    canceled = true;
+                    break;
+                }
             }
         } else if (bookingId.startsWith("B")) {
             for (BusBooking bus : buses) {
-                if (bus.cancelBooking(bookingId, loggedInUser)) { canceled = true; break; }
+                if (bus.cancelBooking(bookingId, loggedInUser)) {
+                    canceled = true;
+                    break;
+                }
             }
         } else {
-            System.out.println("\033[1;31mInvalid Booking ID format (must start with P, T, or B).\033[0m");
+            System.out.println(Utils.RED + "Invalid Booking ID format (must start with P, T, or B)." + Utils.RESET);
             Utils.pause(sc);
-            return;
+            return; // No need to proceed
         }
 
+        // Display result message
         if (canceled) {
-            System.out.println("\033[1;32mBooking " + bookingId + " cancelled successfully in memory.\033[0m");
-            System.out.println("\033[0;90m(Changes will be saved automatically on logout/exit)\033[0m");
+            System.out.println(Utils.GREEN_BOLD + "\nBooking " + bookingId + " cancelled successfully in memory." + Utils.RESET);
+            System.out.println(Utils.GREY + "(Changes will be saved automatically on logout/exit)" + Utils.RESET);
+            // IMPORTANT: Make sure StorageManager.saveBookings() is called reliably later
         } else {
-            System.out.println("\033[1;31mBooking ID " + bookingId + " not found or you are not authorized to cancel it.\033[0m");
+            System.out.println(Utils.RED + "\nBooking ID " + bookingId + " not found or you are not authorized to cancel it." + Utils.RESET);
         }
-        Utils.pause(sc);
+        Utils.pause(sc); // Pause after attempt
     }
+
+    // Removed calculateETA as ETA comes from RouteDataManager via RouteDetail
+    // public static String calculateETA(...) { ... }
 
 } // End of BookingSystem class
