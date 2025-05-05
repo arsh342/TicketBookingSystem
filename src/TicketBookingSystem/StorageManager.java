@@ -6,254 +6,283 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Handles saving and loading user and seat booking data for persistence across sessions.
+ * Handles saving and loading user credentials and booking data to/from files
+ * for persistence across application sessions.
  */
 public class StorageManager {
+    // Constants for filenames
     private static final String USER_FILE = "users.txt";
     private static final String BOOKINGS_FILE = "bookings.txt";
+    // Define the delimiter used in the bookings file
+    private static final String DELIMITER = ":";
 
     /**
-     * Saves user credentials to disk.
+     * Saves user credentials (username:hashed_password) to the user file.
+     * Uses try-with-resources for safe file handling.
+     *
+     * @param users HashMap containing username-password pairs.
      */
     public static void saveUsers(HashMap<String, String> users) {
+        System.out.println("\033[0;90mSaving user data...\033[0m"); // Debug message
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
-            for (var entry : users.entrySet()) {
-                writer.write(entry.getKey() + ":" + entry.getValue());
+            for (Map.Entry<String, String> entry : users.entrySet()) {
+                // Simple format: username:hashedPassword
+                writer.write(entry.getKey() + DELIMITER + entry.getValue());
                 writer.newLine();
             }
-            System.out.println("\033[1;32mUser data saved successfully.\033[0m");
+            System.out.println("\033[1;32mUser data saved successfully to " + USER_FILE + ".\033[0m");
         } catch (IOException e) {
-            System.out.println("\033[1;31mError saving users: " + e.getMessage() + "\033[0m");
+            System.err.println("\033[1;31mError saving user data to " + USER_FILE + ": " + e.getMessage() + "\033[0m");
         }
     }
 
     /**
-     * Loads user credentials from disk.
+     * Loads user credentials from the user file.
+     * Handles file not found scenarios gracefully.
+     * Uses try-with-resources.
+     *
+     * @return HashMap containing loaded username-password pairs.
      */
     public static HashMap<String, String> loadUsers() {
         HashMap<String, String> users = new HashMap<>();
         File file = new File(USER_FILE);
+
         if (!file.exists()) {
-            System.out.println("\033[1;33mNo user data file found. Starting fresh.\033[0m");
-            return users;
+            System.out.println("\033[1;33mUser data file (" + USER_FILE + ") not found. Starting with no users.\033[0m");
+            return users; // Return empty map
         }
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+        System.out.println("\033[0;90mLoading user data from " + USER_FILE + "...\033[0m");
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
+            int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(":");
-                if (parts.length == 2) {
-                    users.put(parts[0], parts[1]);
+                lineNumber++;
+                if (line.trim().isEmpty() || line.startsWith("#")) continue; // Skip empty/comment lines
+
+                String[] parts = line.split(DELIMITER, 2); // Split only on the first delimiter
+                if (parts.length == 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
+                    users.put(parts[0], parts[1]); // username, hashedPassword
+                } else {
+                    System.err.println("\033[1;33mWarning: Skipping malformed line #" + lineNumber + " in " + USER_FILE + ": " + line + "\033[0m");
                 }
             }
             System.out.println("\033[1;32mUser data loaded successfully.\033[0m");
         } catch (IOException e) {
-            System.out.println("\033[1;31mError loading users: " + e.getMessage() + "\033[0m");
+            System.err.println("\033[1;31mError loading user data from " + USER_FILE + ": " + e.getMessage() + "\033[0m");
         }
         return users;
     }
 
     /**
-     * Saves all bookings to disk.
+     * Saves all current bookings from Plane, Train, and Bus objects to the bookings file.
+     * Uses a consistent format:
+     * BookingID:Username:StartCity:DestCity:Price:SeatClass:SeatRow:SeatCol:VehicleID:TravelDate
+     *
+     * @param planes List of PlaneBooking objects.
+     * @param trains List of TrainBooking objects.
+     * @param buses List of BusBooking objects.
      */
     public static void saveBookings(List<PlaneBooking> planes, List<TrainBooking> trains, List<BusBooking> buses) {
+        System.out.println("\033[0;90mSaving bookings data...\033[0m"); // Debug message
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(BOOKINGS_FILE))) {
             // Save Plane bookings
             for (PlaneBooking plane : planes) {
-                Map<String, Object[]> planeBookings = getBookingsMap(plane);
-                for (var entry : planeBookings.entrySet()) {
-                    Object[] booking = entry.getValue();
-                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
-                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], plane.getFlightId(), booking[7]));
-                    writer.newLine();
+                String vehicleId = plane.getFlightId();
+                // Directly iterate through the bookings map using the public getter
+                for (Map.Entry<String, ?> entry : plane.getBookings().entrySet()) {
+                    String bookingId = entry.getKey().toUpperCase(); // Save uppercase ID
+                    // Cast the value to the correct inner Booking type (we know it's static now)
+                    Object bookingObj = entry.getValue();
+                    // Access details using getters (Casting needed if Booking class is not directly accessible - but it should be via package access)
+                    try {
+                        // Assuming Booking class is accessible within the package
+                        PlaneBooking.Booking booking = (PlaneBooking.Booking) bookingObj; // Cast needed if generic Map type is used
+                        Seat seat = booking.getSeat();
+                        String line = String.join(DELIMITER,
+                                bookingId,
+                                booking.getUsername(),
+                                booking.getStartCity(),
+                                booking.getDestCity(),
+                                String.format("%.2f", booking.getPrice()), // Format price
+                                booking.getSeatClass(),
+                                String.valueOf(seat.getRow()),
+                                seat.getColumn(),
+                                vehicleId,
+                                booking.getTravelDate()
+                        );
+                        writer.write(line);
+                        writer.newLine();
+                    } catch (ClassCastException e) {
+                        System.err.println("\033[1;31mError casting booking object during save for Plane ID " + vehicleId + ". Booking ID: " + bookingId + "\033[0m");
+                    }
                 }
             }
 
-            // Save Train bookings
+            // Save Train bookings (similar logic)
             for (TrainBooking train : trains) {
-                Map<String, Object[]> trainBookings = getBookingsMap(train);
-                for (var entry : trainBookings.entrySet()) {
-                    Object[] booking = entry.getValue();
-                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
-                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], train.getTrainId(), booking[7]));
-                    writer.newLine();
+                String vehicleId = train.getTrainId();
+                for (Map.Entry<String, ?> entry : train.getBookings().entrySet()) {
+                    String bookingId = entry.getKey().toUpperCase();
+                    Object bookingObj = entry.getValue();
+                    try {
+                        TrainBooking.Booking booking = (TrainBooking.Booking) bookingObj;
+                        Seat seat = booking.getSeat();
+                        String line = String.join(DELIMITER,
+                                bookingId, booking.getUsername(), booking.getStartCity(), booking.getDestCity(),
+                                String.format("%.2f", booking.getPrice()), booking.getSeatClass(),
+                                String.valueOf(seat.getRow()), seat.getColumn(), vehicleId, booking.getTravelDate()
+                        );
+                        writer.write(line);
+                        writer.newLine();
+                    } catch (ClassCastException e) {
+                        System.err.println("\033[1;31mError casting booking object during save for Train ID " + vehicleId + ". Booking ID: " + bookingId + "\033[0m");
+                    }
                 }
             }
 
-            // Save Bus bookings
+            // Save Bus bookings (similar logic)
             for (BusBooking bus : buses) {
-                Map<String, Object[]> busBookings = getBookingsMap(bus);
-                for (var entry : busBookings.entrySet()) {
-                    Object[] booking = entry.getValue();
-                    writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
-                            entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], bus.getBusId(), booking[7]));
-                    writer.newLine();
+                String vehicleId = bus.getBusId();
+                for (Map.Entry<String, ?> entry : bus.getBookings().entrySet()) {
+                    String bookingId = entry.getKey().toUpperCase();
+                    Object bookingObj = entry.getValue();
+                    try {
+                        BusBooking.Booking booking = (BusBooking.Booking) bookingObj;
+                        Seat seat = booking.getSeat();
+                        String line = String.join(DELIMITER,
+                                bookingId, booking.getUsername(), booking.getStartCity(), booking.getDestCity(),
+                                String.format("%.2f", booking.getPrice()), booking.getSeatClass(), // Should be "Standard"
+                                String.valueOf(seat.getRow()), seat.getColumn(), vehicleId, booking.getTravelDate()
+                        );
+                        writer.write(line);
+                        writer.newLine();
+                    } catch (ClassCastException e) {
+                        System.err.println("\033[1;31mError casting booking object during save for Bus ID " + vehicleId + ". Booking ID: " + bookingId + "\033[0m");
+                    }
                 }
             }
 
-            System.out.println("\033[1;32mBookings saved successfully.\033[0m");
+            System.out.println("\033[1;32mBookings data saved successfully to " + BOOKINGS_FILE + ".\033[0m");
         } catch (IOException e) {
-            System.out.println("\033[1;31mError saving bookings: " + e.getMessage() + "\033[0m");
+            System.err.println("\033[1;31mError saving bookings data to " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
+        } catch (Exception e) {
+            // Catch unexpected errors during saving
+            System.err.println("\033[1;31mAn unexpected error occurred during booking save: " + e.getMessage() + "\033[0m");
+            e.printStackTrace();
         }
     }
 
     /**
-     * Loads bookings from disk and populates the booking classes.
+     * Loads bookings from the bookings file and adds them to the appropriate
+     * Plane, Train, or Bus objects.
+     * Format expected: BookingID:Username:StartCity:DestCity:Price:SeatClass:SeatRow:SeatCol:VehicleID:TravelDate
+     *
+     * @param planes List of PlaneBooking objects to populate.
+     * @param trains List of TrainBooking objects to populate.
+     * @param buses List of BusBooking objects to populate.
      */
     public static void loadBookings(List<PlaneBooking> planes, List<TrainBooking> trains, List<BusBooking> buses) {
         File file = new File(BOOKINGS_FILE);
         if (!file.exists()) {
-            System.out.println("\033[1;33mNo bookings file found. Starting fresh.\033[0m");
+            System.out.println("\033[1;33mBookings file (" + BOOKINGS_FILE + ") not found. Starting with no existing bookings.\033[0m");
             return;
         }
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKINGS_FILE))) {
+        System.out.println("\033[0;90mLoading bookings data from " + BOOKINGS_FILE + "...\033[0m");
+        int lineNumber = 0;
+        int loadedCount = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(":");
-                // Handle both old format (9 parts) and new format (10 parts with travelDate)
-                if (parts.length != 9 && parts.length != 10) continue; // Skip malformed entries
+                lineNumber++;
+                if (line.trim().isEmpty() || line.startsWith("#")) continue;
 
-                String bookingId = parts[0];
-                String username = parts[1];
-                String startCity = parts[2];
-                String destCity = parts[3];
-                double price = Double.parseDouble(parts[4]);
-                String seatClass = parts[5];
-                int row = Integer.parseInt(parts[6]);
-                String col = parts[7];
-                String vehicleId = parts[8];
-                String travelDate = (parts.length == 10) ? parts[9] : "N/A"; // Default to "N/A" for old format
-
-                String transportType = bookingId.startsWith("P") ? "Plane" : bookingId.startsWith("T") ? "Train" : "Bus";
-                Seat seat = new Seat(row, col, seatClass, transportType, price);
-                seat.reserve(); // Mark as reserved since this is a booked seat
-
-                if (bookingId.startsWith("P")) {
-                    PlaneBooking targetPlane = planes.stream()
-                            .filter(plane -> plane.getFlightId().equals(vehicleId))
-                            .findFirst()
-                            .orElse(null);
-                    if (targetPlane != null) {
-                        targetPlane.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
-                    }
-                } else if (bookingId.startsWith("T")) {
-                    TrainBooking targetTrain = trains.stream()
-                            .filter(train -> train.getTrainId().equals(vehicleId))
-                            .findFirst()
-                            .orElse(null);
-                    if (targetTrain != null) {
-                        targetTrain.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
-                    }
-                } else if (bookingId.startsWith("B")) {
-                    BusBooking targetBus = buses.stream()
-                            .filter(bus -> bus.getBusId().equals(vehicleId))
-                            .findFirst()
-                            .orElse(null);
-                    if (targetBus != null) {
-                        targetBus.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
-                    }
+                String[] parts = line.split(DELIMITER);
+                // Expecting 10 parts for the new format
+                if (parts.length != 10) {
+                    System.err.println("\033[1;33mWarning: Skipping malformed line #" + lineNumber + " in " + BOOKINGS_FILE + " (Expected 10 parts, found " + parts.length + "): " + line + "\033[0m");
+                    continue; // Skip malformed entries
                 }
-            }
-            System.out.println("\033[1;32mBookings loaded successfully.\033[0m");
-        } catch (IOException | NumberFormatException e) {
-            System.out.println("\033[1;31mError loading bookings: " + e.getMessage() + "\033[0m");
-        }
-    }
 
-    /**
-     * Removes a booking from the file and updates the bookings.
-     */
-    public static void removeBooking(String bookingId, List<PlaneBooking> planes, List<TrainBooking> trains, List<BusBooking> buses) {
-        Map<String, Object[]> allBookings = new HashMap<>();
+                try {
+                    // Parse data from parts
+                    String bookingId = parts[0].toUpperCase(); // Load uppercase ID
+                    String username = parts[1];
+                    String startCity = parts[2];
+                    String destCity = parts[3];
+                    double price = Double.parseDouble(parts[4]);
+                    String seatClass = parts[5];
+                    int row = Integer.parseInt(parts[6]);
+                    String col = parts[7]; // Seat column is already a string
+                    String vehicleId = parts[8];
+                    String travelDate = parts[9]; // Travel date is the last part
 
-        // Collect bookings from Planes
-        for (PlaneBooking plane : planes) {
-            allBookings.putAll(getBookingsMap(plane, plane.getFlightId()));
-        }
-        // Collect bookings from Trains
-        for (TrainBooking train : trains) {
-            allBookings.putAll(getBookingsMap(train, train.getTrainId()));
-        }
-        // Collect bookings from Buses
-        for (BusBooking bus : buses) {
-            allBookings.putAll(getBookingsMap(bus, bus.getBusId()));
-        }
+                    // Determine transport type from Booking ID prefix
+                    String transportType = "";
+                    if (bookingId.startsWith("P")) transportType = "Plane";
+                    else if (bookingId.startsWith("T")) transportType = "Train";
+                    else if (bookingId.startsWith("B")) transportType = "Bus";
+                    else {
+                        System.err.println("\033[1;33mWarning: Skipping line #" + lineNumber + " due to unknown booking ID prefix: " + bookingId + "\033[0m");
+                        continue;
+                    }
 
-        // Remove the specified booking
-        allBookings.remove(bookingId);
+                    // Create the Seat object - its status will be set by addBooking
+                    Seat seat = new Seat(row, col, seatClass, transportType, price);
 
-        // Rewrite the bookings file
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(BOOKINGS_FILE))) {
-            for (var entry : allBookings.entrySet()) {
-                Object[] booking = entry.getValue();
-                writer.write(String.format("%s:%s:%s:%s:%.2f:%s:%d:%s:%s:%s",
-                        entry.getKey(), booking[0], booking[1], booking[2], booking[3], booking[4], booking[5], booking[6], booking[7], booking[8]));
-                writer.newLine();
-            }
-            System.out.println("\033[1;32mBooking removed and file updated successfully.\033[0m");
+                    // Find the correct vehicle and add the booking
+                    boolean bookingAdded = false;
+                    if (transportType.equals("Plane")) {
+                        for (PlaneBooking plane : planes) {
+                            if (plane.getFlightId().equals(vehicleId)) {
+                                plane.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
+                                bookingAdded = true;
+                                break;
+                            }
+                        }
+                    } else if (transportType.equals("Train")) {
+                        for (TrainBooking train : trains) {
+                            if (train.getTrainId().equals(vehicleId)) {
+                                train.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
+                                bookingAdded = true;
+                                break;
+                            }
+                        }
+                    } else if (transportType.equals("Bus")) {
+                        // For bus, ensure seatClass loaded is "Standard" conceptually
+                        for (BusBooking bus : buses) {
+                            if (bus.getBusId().equals(vehicleId)) {
+                                // BusBooking's addBooking should handle setting class to "Standard"
+                                bus.addBooking(bookingId, username, startCity, destCity, price, seatClass, seat, travelDate);
+                                bookingAdded = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (bookingAdded) {
+                        loadedCount++;
+                    } else {
+                        System.err.println("\033[1;33mWarning: Skipping line #" + lineNumber + ". Could not find matching vehicle ID '" + vehicleId + "' for booking ID '" + bookingId + "'.\033[0m");
+                    }
+
+                } catch (NumberFormatException e) {
+                    System.err.println("\033[1;33mWarning: Skipping line #" + lineNumber + " due to number format error in " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
+                } catch (Exception e) { // Catch any other unexpected errors during parsing/loading
+                    System.err.println("\033[1;31mError processing line #" + lineNumber + " in " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
+                    e.printStackTrace(); // Print stack trace for debugging help
+                }
+            } // End while loop
+            System.out.println("\033[1;32mBookings data loaded successfully (" + loadedCount + " bookings).\033[0m");
         } catch (IOException e) {
-            System.out.println("\033[1;31mError removing booking: " + e.getMessage() + "\033[0m");
+            System.err.println("\033[1;31mError loading bookings data from " + BOOKINGS_FILE + ": " + e.getMessage() + "\033[0m");
         }
     }
 
-    /**
-     * Helper method to extract bookings from a booking class.
-     */
-    private static Map<String, Object[]> getBookingsMap(Object bookingClass, String vehicleId) {
-        Map<String, Object[]> bookingMap = new HashMap<>();
-        Map<String, ?> bookings;
+    // --- REMOVED METHODS ---
+    // removeBooking(String bookingId, ...) - Removed, cancellation handled in memory
+    // getBookingsMap(...) - Removed, no longer needed due to public getters
+    // invokeMethod(...) - Removed, no reflection needed
 
-        if (bookingClass instanceof PlaneBooking) {
-            bookings = ((PlaneBooking) bookingClass).getBookings();
-        } else if (bookingClass instanceof TrainBooking) {
-            bookings = ((TrainBooking) bookingClass).getBookings();
-        } else if (bookingClass instanceof BusBooking) {
-            bookings = ((BusBooking) bookingClass).getBookings();
-        } else {
-            return bookingMap;
-        }
-
-        for (var entry : bookings.entrySet()) {
-            String bookingId = entry.getKey();
-            Object booking = entry.getValue();
-            String username = (String) invokeMethod(booking, "getUsername");
-            String startCity = (String) invokeMethod(booking, "getStartCity");
-            String destCity = (String) invokeMethod(booking, "getDestCity");
-            double price = (double) invokeMethod(booking, "getPrice");
-            String seatClass = (String) invokeMethod(booking, "getSeatClass");
-            Seat seat = (Seat) invokeMethod(booking, "getSeat");
-            String travelDate = (String) invokeMethod(booking, "getTravelDate");
-
-            bookingMap.put(bookingId, new Object[]{username, startCity, destCity, price, seatClass, seat.getRow(), seat.getColumn(), vehicleId, travelDate});
-        }
-        return bookingMap;
-    }
-
-    /**
-     * Helper method to extract bookings without vehicle ID.
-     */
-    private static Map<String, Object[]> getBookingsMap(Object bookingClass) {
-        String vehicleId = "";
-        if (bookingClass instanceof PlaneBooking) {
-            vehicleId = ((PlaneBooking) bookingClass).getFlightId();
-        } else if (bookingClass instanceof TrainBooking) {
-            vehicleId = ((TrainBooking) bookingClass).getTrainId();
-        } else if (bookingClass instanceof BusBooking) {
-            vehicleId = ((BusBooking) bookingClass).getBusId();
-        }
-        return getBookingsMap(bookingClass, vehicleId);
-    }
-
-    /**
-     * Helper method to invoke a method via reflection (since Booking is a private inner class).
-     */
-    private static Object invokeMethod(Object obj, String methodName) {
-        try {
-            return obj.getClass().getDeclaredMethod(methodName).invoke(obj);
-        } catch (Exception e) {
-            System.out.println("\033[1;31mError invoking method " + methodName + ": " + e.getMessage() + "\033[0m");
-            return null;
-        }
-    }
-}
+} // End of StorageManager class

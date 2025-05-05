@@ -13,48 +13,55 @@ public class Seat {
 
     public Seat(int row, String column, String seatClass, String transportType, double price) {
         this.row = row;
-        this.column = column;
+        this.column = column; // Assuming column is like "A", "B" etc.
         this.seatClass = seatClass;
         this.transportType = transportType;
         this.price = price;
         this.isReserved = false;
     }
 
-    public int getRow() {
-        return row;
-    }
+    // --- Getters ---
+    public int getRow() { return row; }
+    public String getColumn() { return column; }
+    public String getSeatClass() { return seatClass; }
+    public String getTransportType() { return transportType; }
+    public double getPrice() { return price; }
+    public boolean isReserved() { return isReserved; }
 
-    public String getColumn() {
-        return column;
-    }
+    // --- Modifiers ---
+    public void reserve() { isReserved = true; }
+    public void unreserve() { isReserved = false; }
 
-    public String getSeatClass() {
-        return seatClass;
-    }
-
-    public String getTransportType() {
-        return transportType;
-    }
-
-    public double getPrice() {
-        return price;
-    }
-
-    public boolean isReserved() {
-        return isReserved;
-    }
-
-    public void reserve() {
-        isReserved = true;
-    }
-
-    public void unreserve() {
-        isReserved = false;
+    /**
+     * Gets a string representation of the seat ID (e.g., "5B", "10A").
+     * @return The seat ID string.
+     */
+    public String getSeatId() {
+        return "" + row + column;
     }
 
     @Override
     public String toString() {
+        // Display like O(5B) or X(10A)
         String status = isReserved ? "\033[31mX\033[0m" : "\033[32mO\033[0m";
-        return status + "(" + row + column + ")";
+        return status + "(" + getSeatId() + ")";
+    }
+
+    // Optional: equals() and hashCode() if seats need to be compared directly
+    // based on row, column, and potentially transport type/class
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Seat seat = (Seat) o;
+        return row == seat.row &&
+                column.equals(seat.column) &&
+                seatClass.equals(seat.seatClass) &&
+                transportType.equals(seat.transportType);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(row, column, seatClass, transportType);
     }
 }

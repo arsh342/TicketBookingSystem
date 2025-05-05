@@ -1,79 +1,93 @@
 package TicketBookingSystem;
 
-import java.util.HashMap;
 import java.util.Scanner;
+// Removed java.util.HashMap import as the static distances map is gone.
 
 public class Utils {
-    // Define cities and distances (in kilometers) as a simple lookup table
-    private static final HashMap<String, HashMap<String, Integer>> distances = new HashMap<>();
 
-    static {
-        // Initialize distances between cities (symmetric)
-        HashMap<String, Integer> delhi = new HashMap<>();
-        delhi.put("Mumbai", 1200);
-        delhi.put("Chennai", 2200);
-        delhi.put("Kolkata", 1500);
-        distances.put("Delhi", delhi);
-
-        HashMap<String, Integer> mumbai = new HashMap<>();
-        mumbai.put("Delhi", 1200);
-        mumbai.put("Chennai", 1300);
-        mumbai.put("Kolkata", 1900);
-        distances.put("Mumbai", mumbai);
-
-        HashMap<String, Integer> chennai = new HashMap<>();
-        chennai.put("Delhi", 2200);
-        chennai.put("Mumbai", 1300);
-        chennai.put("Kolkata", 1700);
-        distances.put("Chennai", chennai);
-
-        HashMap<String, Integer> kolkata = new HashMap<>();
-        kolkata.put("Delhi", 1500);
-        kolkata.put("Mumbai", 1900);
-        kolkata.put("Chennai", 1700);
-        distances.put("Kolkata", kolkata);
-    }
-
-    // Base price per kilometer for each transport type
+    // --- Price Constants (Still needed for calculatePrice) ---
+    // Base price per kilometer for each transport type (adjust as needed)
     private static final double PLANE_PRICE_PER_KM = 5.0;  // Rs. 5 per km
     private static final double TRAIN_PRICE_PER_KM = 1.0;  // Rs. 1 per km
     private static final double BUS_PRICE_PER_KM = 0.5;    // Rs. 0.5 per km
 
-    // Available cities for user selection
-    public static final String[] CITIES = {"Delhi", "Mumbai", "Chennai", "Kolkata"};
+    // --- Removed static distances map and initializer block ---
+    // private static final HashMap<String, HashMap<String, Integer>> distances = new HashMap<>();
+    // static { ... }
 
+    // --- Removed static CITIES array ---
+    // public static final String[] CITIES = {"Delhi", "Mumbai", "Chennai", "Kolkata"};
+
+
+    /**
+     * Pauses the execution and waits for the user to press Enter.
+     * Clears the input buffer before waiting.
+     * @param sc Scanner object to read input.
+     */
     public static void pause(Scanner sc) {
-        System.out.println("\n\033[1;33mPress Enter to continue...\033[0m");
-        sc.nextLine();
+        System.out.print("\n\033[1;33mPress Enter to continue...\033[0m");
+        // No need for sc.nextLine() here if the previous input consumed the newline.
+        // If issues arise, uncomment the next line. Be careful not to consume needed input.
+        // if(sc.hasNextLine()) sc.nextLine(); // Consume any leftover newline
+        sc.nextLine(); // Wait for Enter key press
     }
 
+    /**
+     * Clears the console screen using ANSI escape codes.
+     * May not work on all terminals (e.g., some IDE consoles).
+     */
     public static void clearScreen() {
+        // Standard ANSI escape codes for clearing screen and moving cursor to top-left
         System.out.print("\033[H\033[2J");
-        System.out.flush();
+        System.out.flush(); // Ensure the codes are sent to the terminal immediately
     }
 
+    /**
+     * Validates if the input string matches a pattern for row and column (e.g., "5 B" or "10 A").
+     * Note: This might need adjustments based on actual seat formats (e.g., multi-letter columns).
+     * @param input The user input string.
+     * @return true if the input matches the expected pattern, false otherwise.
+     */
     public static boolean isValidRowColumn(String input) {
-        return input.matches("\\d+\\s+[A-Z]") || input.matches("\\d+\\s+\\d+");
+        if (input == null || input.trim().isEmpty()) {
+            return false;
+        }
+        // Matches one or more digits, followed by whitespace, followed by one or more letters.
+        // Allows for rows > 9 and potentially multi-letter columns like "AA".
+        return input.trim().matches("\\d+\\s+[A-Za-z]+");
+        // Original regex: kept for reference
+        // return input.matches("\\d+\\s+[A-Z]") || input.matches("\\d+\\s+\\d+");
     }
 
+    /**
+     * Prints a formatted banner with the given title using ANSI colors.
+     * @param title The title text to display in the banner.
+     */
     public static void printBanner(String title) {
+        // Example: === My Title === (in bold cyan)
         System.out.println("\n\033[1;36m=== " + title + " ===\033[0m");
     }
 
-    // Calculate distance between two cities
-    public static int getDistance(String start, String dest) {
-        start = start.substring(0, 1).toUpperCase() + start.substring(1).toLowerCase();
-        dest = dest.substring(0, 1).toUpperCase() + dest.substring(1).toLowerCase();
+    // --- Removed getDistance method ---
+    // public static int getDistance(String start, String dest) { ... }
 
-        if (!distances.containsKey(start) || !distances.get(start).containsKey(dest)) {
-            return -1; // Invalid route
-        }
-        return distances.get(start).get(dest);
-    }
-
-    // Calculate price based on transport type and distance
+    /**
+     * Calculates the base price for a ticket based on transport type and distance.
+     * Uses predefined price-per-kilometer constants.
+     *
+     * @param transportType The type of transport ("Plane", "Train", "Bus"). Case-insensitive.
+     * @param distance The distance of the route in kilometers. Should be >= 0.
+     * @return The calculated base price, or 0.0 if transport type is unknown or distance is negative.
+     */
     public static double calculatePrice(String transportType, int distance) {
+        // Return 0 if distance is invalid
+        if (distance < 0) {
+            System.err.println("\033[1;31mWarning: calculatePrice called with negative distance: " + distance + "\033[0m");
+            return 0.0;
+        }
+
         double pricePerKm;
+        // Use toLowerCase() for case-insensitive matching
         switch (transportType.toLowerCase()) {
             case "plane":
                 pricePerKm = PLANE_PRICE_PER_KM;
@@ -85,16 +99,14 @@ public class Utils {
                 pricePerKm = BUS_PRICE_PER_KM;
                 break;
             default:
-                pricePerKm = 0;
+                System.err.println("\033[1;31mWarning: calculatePrice called with unknown transport type: " + transportType + "\033[0m");
+                pricePerKm = 0.0; // Unknown type, return 0 price
         }
+        // Calculate and return the total base price
         return pricePerKm * distance;
     }
 
-    // Display available cities
-    public static void displayCities() {
-        System.out.println("\n\033[1;36mAvailable Cities:\033[0m");
-        for (int i = 0; i < CITIES.length; i++) {
-            System.out.println("\033[1;33m" + (i + 1) + ".\033[0m " + CITIES[i]);
-        }
-    }
-}
+    // --- Removed displayCities method ---
+    // public static void displayCities() { ... }
+
+} // End of Utils class
