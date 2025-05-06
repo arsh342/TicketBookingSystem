@@ -23,7 +23,7 @@ SkyRoute is a comprehensive console-based ticket booking application built in Ja
     * **Class Selection:** Different travel classes available for planes and trains with corresponding price multipliers. Buses use a "Standard" class.
     * **Seat Selection:** Interactive seat map display (`O` for available, `X` for reserved). Users select seats by row and column.
     * **Passenger Details:** Collects passenger name, age, gender, and email with input validation.
-    * **Payment Simulation:** A simulated payment process with options for Credit Card, Debit Card, or UPI (no actual payment is processed, dummy details are accepted).
+    * **Payment Simulation:** A simulated payment process (no actual payment is processed).
     * **Booking Confirmation:** Displays a detailed confirmation upon successful booking.
 * **Booking Management:**
     * View all bookings made by the logged-in user.
@@ -32,126 +32,150 @@ SkyRoute is a comprehensive console-based ticket booking application built in Ja
     * User accounts are saved in `users.txt`.
     * Confirmed bookings are saved in `bookings.txt`.
 * **User Interface:**
-    * Console-based interface with styled menus, prompts, and messages using ANSI color codes for better readability and visual appeal.
+    * Console-based interface with styled menus, prompts, and messages using ANSI color codes for better readability.
     * Password masking during input (works best when run directly in a system terminal).
 
-## Project Structure
+## Project Structure and Classes
 
-The project is organized into several Java classes and data files within the `TicketBookingSystem` package.
+The project is organized into several Java classes within the `TicketBookingSystem` package, supported by text-based data files.
 
-### Java Files:
+### Key Java Classes & Their Roles:
 
-* **Core Logic & Application Flow:**
-    * `Main.java`: Main entry point, top-level menu, application flow control, default admin creation.
-    * `BookingSystem.java`: Manages the booking workflow for regular users, interacts with `RouteDataManager` and vehicle booking objects.
-    * `AdminDashboard.java`: Provides the menu and functionalities for the admin user.
-* **User & Data Management:**
-    * `UserManager.java`: Handles user registration, login, and password hashing (SHA-256).
-    * `RouteDataManager.java`: Loads, parses, and provides access to route information from `airports.txt`, `train_stations.txt`, `bus_stations.txt`. Contains `LocationInfo` and `RouteDetail` records.
-* **Vehicle Booking Classes:** (These act as managers for booking types)
-    * `PlaneBooking.java`: Manages plane seat layouts, booking finalization, and stores plane bookings.
-    * `TrainBooking.java`: Manages train seat layouts, booking finalization, and stores train bookings.
-    * `BusBooking.java`: Manages bus seat layouts, booking finalization, and stores bus bookings.
-* **Data Structures/Models:**
-    * `Seat.java`: Represents a single seat with its properties (row, column, class, price, status).
-    * `Passenger.java`: Represents a passenger with details (name, age, gender, email, booked seat).
-    * `CustomLinkedList.java`: A generic linked list used for managing temporary seat layouts during booking.
-    * Inner `Booking` class (within `Plane/Train/BusBooking.java`): Represents a confirmed booking record, including the selected service provider.
-* **Utilities & Persistence:**
-    * `Utils.java`: Contains static helper methods for console styling (ANSI colors), input validation (date, age, gender, email), payment simulation, and price calculation.
-    * `StorageManager.java`: Handles saving and loading user data (`users.txt`) and booking data (`bookings.txt`) to/from files.
+* **`Main.java`**:
+    * **Purpose:** Application entry point, main menu, overall flow control.
+    * **Responsibilities:** Initializes core components, handles default admin creation, displays the primary menu (Register, Login, View Routes, Exit), directs users to appropriate dashboards (Admin or User), and manages application exit (including data saving).
+* **`UserManager.java`**:
+    * **Purpose:** Handles user authentication and account management.
+    * **Responsibilities:** User registration (with password hashing), user login (verifying credentials), password hashing (SHA-256), providing user data to `StorageManager` and `AdminDashboard`.
+* **`BookingSystem.java`**:
+    * **Purpose:** Orchestrates the booking process for regular (non-admin) users.
+    * **Responsibilities:** Manages lists of vehicle booking "manager" objects (`PlaneBooking`, `TrainBooking`, `BusBooking`), interacts with `RouteDataManager` for route and provider selection, handles class and date selection, calls the appropriate vehicle manager to finalize booking, manages user's own booking viewing and cancellation.
+* **`AdminDashboard.java`**:
+    * **Purpose:** Provides a dedicated interface for administrative tasks.
+    * **Responsibilities:** Displays admin-specific menu, allows viewing of all bookings across all users, lists all registered users (via `UserManager`), enables cancellation of any booking by ID.
+* **`RouteDataManager.java`**:
+    * **Purpose:** Loads, parses, and provides access to route information from data files.
+    * **Responsibilities:** Reads and parses `airports.txt`, `train_stations.txt`, `bus_stations.txt`. Stores route details (distance, ETA, providers) and location information. Provides this data to `BookingSystem` for user choices and to `Main` for the "View Route Information" feature.
+* **`PlaneBooking.java` / `TrainBooking.java` / `BusBooking.java`**:
+    * **Purpose:** Each class acts as a "manager" for bookings related to its transport type. It handles the specifics of seat layout, booking finalization, and stores bookings associated with its generic manager ID (e.g., "PLANE-MANAGER-1").
+    * **Responsibilities:** Initializes and displays seat layouts (using `CustomLinkedList<Seat>`), handles seat selection by the user, collects validated passenger details, simulates payment, creates and stores `Booking` records (including the specific service provider chosen by the user), displays bookings for a user relevant to this manager, and handles booking cancellations for bookings it manages.
+* **`StorageManager.java`**:
+    * **Purpose:** Handles persistence of user and booking data to text files.
+    * **Responsibilities:** Saves and loads user credentials (username and hashed passwords) to/from `users.txt`. Saves and loads confirmed booking details (including provider information) to/from `bookings.txt`.
+* **`Seat.java`**:
+    * **Purpose:** Data model representing a single seat.
+    * **Responsibilities:** Stores seat properties (row, column, class, type, price, reserved status). Provides methods to reserve/unreserve and display its status.
+* **`Passenger.java`**:
+    * **Purpose:** Data model representing a passenger.
+    * **Responsibilities:** Stores passenger details (name, age, gender, email) and the `Seat` object they booked.
+* **`CustomLinkedList.java`**:
+    * **Purpose:** A generic, singly linked list implementation.
+    * **Responsibilities:** Used by `Plane/Train/BusBooking` classes to temporarily manage and display the list of `Seat` objects for a specific booking transaction. Implements `Iterable`.
+* **`Utils.java`**:
+    * **Purpose:** Provides static utility methods used across the application.
+    * **Responsibilities:** Defines ANSI color constants for console styling, methods for `pause`, `clearScreen`, `printBanner`, base price calculation, input validation (`getValidTravelDate`, `getValidAge`, `getValidGender`, `getValidEmail`), and payment simulation.
 
-### Data Files (should be in the root execution directory):
+### Data Files (Text-Based):
 
-* `users.txt`: Stores user credentials (`username:hashedPassword`).
-* `bookings.txt`: Stores confirmed booking details.
-    * Format: `BookingID:Username:StartCity:DestCity:Price:SeatClass:SeatRow:SeatCol:VehicleManagerID:TravelDate:Provider`
-* `airports.txt`: Data for airport locations, routes, distances, ETAs, and airline providers.
-    * Format: `City|Airport Name (Code)|[Opt. Alt Name]|Dest1:Dist1:ETA1:Prov1,Prov2;Dest2...`
-* `train_stations.txt`: Data for train stations, routes, distances, ETAs, and train service providers.
-    * Format: `City|Station Name (Code)|[Opt. Alt Name]|Dest1:Dist1:ETA1:Prov1,Prov2;Dest2...`
-* `bus_stations.txt`: Data for bus stations, routes, distances, ETAs, and bus service providers.
-    * Format: `City|Station Name|[Opt. Alt Name]|Dest1:Dist1:ETA1:Prov1,Prov2;Dest2...`
+* `users.txt`: Stores `username:hashedPassword`.
+* `bookings.txt`: Stores confirmed bookings. Format: `BookingID:Username:StartCity:DestCity:Price:SeatClass:SeatRow:SeatCol:VehicleManagerID:TravelDate:Provider`
+* `airports.txt`, `train_stations.txt`, `bus_stations.txt`: Define locations, routes, distances, ETAs, and service providers. Format: `City|PrimaryName[|AltName1|AltName2...]|RouteDetailsString` where `RouteDetailsString` is `Dest1:Dist1:ETA1:ProvA,ProvB;Dest2...`.
 
-## How it Works
+## Key Imports (Examples)
 
-1.  **Initialization:** `Main` initializes `UserManager`, `BookingSystem`, and `RouteDataManager`. `RouteDataManager` loads route data from text files. `UserManager` loads existing users.
-2.  **Admin Setup:** `Main` checks if an "admin" user exists. If not, it registers "admin" with the password "admin".
-3.  **User Interaction:**
-    * Users can register or log in. Passwords are hashed by `UserManager`.
-    * Logged-in users are directed to `BookingSystem` for booking tasks, or `AdminDashboard` if they are the admin.
-4.  **Booking Process (`BookingSystem`):**
-    * User selects transport type, then origin and destination from lists populated by `RouteDataManager`.
-    * Route details (distance, ETA) are displayed.
-    * User provides a valid travel date.
-    * User selects travel class (if applicable), which affects the price.
-    * A list of specific service providers (e.g., "IndiGo 123", "Rajdhani Exp") for that route is shown. User selects one.
-    * A "manager" object (e.g., the first `PlaneBooking` object) handles the rest:
-        * It initializes and displays a seat map for the chosen class.
-        * User selects a seat.
-        * User provides passenger details (name, age, gender, email) which are validated.
-        * A payment process is simulated.
-        * If successful, a `Booking` record (including the selected provider) is created and stored within the manager object.
-5.  **Data Persistence (`StorageManager`):**
-    * User registrations are saved to `users.txt` immediately.
-    * All confirmed bookings from all manager objects are saved to `bookings.txt` when the user logs out from the main booking menu or when the application exits. Admin cancellations also trigger a save.
+The project utilizes various standard Java libraries. Some key imports include:
 
-## Setup & Running
+* `java.util.Scanner`: For reading user input from the console.
+* `java.util.List`, `java.util.ArrayList`: For managing dynamic collections of objects (e.g., vehicle managers, providers, sorted lists for display).
+* `java.util.Map`, `java.util.HashMap`: For storing key-value pairs (e.g., user credentials, bookings, route data).
+* `java.util.Collections`: For sorting lists (e.g., displaying cities or users alphabetically).
+* `java.io.*` (e.g., `BufferedReader`, `BufferedWriter`, `FileReader`, `FileWriter`, `File`, `Console`): For file input/output operations and console interactions (password masking).
+* `java.security.MessageDigest`, `java.security.NoSuchAlgorithmException`: For password hashing using SHA-256.
+* `java.time.*` (e.g., `LocalDate`, `DateTimeFormatter`, `DateTimeParseException`, `ResolverStyle`): For robust date handling and validation.
+* `java.util.regex.Pattern`: For basic email validation.
+* `java.util.InputMismatchException`: For handling errors when reading numeric input.
+
+## Data Structures and Algorithms (DSA) Concepts Implemented
+
+* **Arrays:**
+    * Used in `Plane/Train/BusBooking` (e.g., `char[] columns`) for defining basic seat column layouts.
+    * Used in `Utils` (e.g., `VALID_GENDERS` initialized from `Arrays.asList`).
+    * String splitting (`split()`) results in arrays, used extensively in parsing data from files (`RouteDataManager`, `StorageManager`).
+* **Linked Lists:**
+    * **`CustomLinkedList<T>`:** A custom generic singly linked list is implemented to manage `Seat` objects during a booking transaction. This demonstrates understanding of node-based data structures, traversal, addition, and removal operations.
+    * **Conceptual Use:** Used for dynamic storage where the number of elements (seats in a layout) is determined at runtime based on class, and elements need to be iterated over.
+* **Hash Maps (Hash Tables):**
+    * **`HashMap<String, String> users` in `UserManager`:** Stores username-password (hash) pairs. Provides O(1) average time complexity for lookups (checking if a user exists, retrieving a stored password hash), registrations (checking for existing username), and logins.
+    * **`Map<String, Booking> bookings` in `Plane/Train/BusBooking`:** Stores booking ID to `Booking` object mappings. Allows efficient retrieval and cancellation of bookings by ID.
+    * **`Map<String, LocationInfo> airport/busStation/trainStationData` in `RouteDataManager`:** Stores city names (keys) to detailed `LocationInfo` objects. Provides efficient lookup of location details and their available routes.
+    * **`Map<String, RouteDetail> routes` within `LocationInfo`:** Stores destination city names to `RouteDetail` objects, allowing efficient lookup of specific route information from a given origin.
+* **Sets:**
+    * **`Set<String> VALID_GENDERS` in `Utils`:** Uses a `HashSet` for efficient checking (`contains()`) if a provided gender string (after converting to uppercase) is one of the allowed options. O(1) average time complexity for lookups.
+* **Lists (Dynamic Arrays):**
+    * **`ArrayList<Plane/Train/BusBooking>` in `BookingSystem`:** Manages the collection of vehicle booking manager objects.
+    * **`ArrayList<String> providers` in `RouteDetail`:** Stores the list of service providers for a route.
+    * **`ArrayList<String>` used for sorting keys** in `RouteDataManager` and `UserManager` before displaying lists to the user for better readability (e.g., `originCityKeys`, `destinationKeys`, `sortedUsernames`).
+* **Strings and String Manipulation:**
+    * Extensively used for parsing data from files (splitting lines by delimiters), formatting output for display, and handling user input.
+* **Searching:**
+    * **Linear Search:**
+        * Implicit in `CustomLinkedList.remove()` and `CustomLinkedList.contains()`.
+        * `findSeat()` in `Plane/Train/BusBooking` performs a linear search through the `CustomLinkedList<Seat>`.
+        * Locating the correct `Plane/Train/BusBooking` manager object in `BookingSystem` during loading or cancellation involves iterating through the `ArrayList` of these objects (linear search).
+    * **Hash-based Search:** Utilized by `HashMap.containsKey()` and `HashMap.get()` for O(1) average time lookups in `UserManager`, `RouteDataManager`, and the `bookings` maps within vehicle booking classes.
+* **Sorting:**
+    * **`Collections.sort()`:** Used to sort lists of city names, destination names, and usernames alphabetically before displaying them to the user, enhancing user experience. This typically uses a variation of MergeSort or TimSort in Java, offering O(n log n) time complexity.
+* **Recursion:**
+    * A light form of recursion is used in `BookingSystem.selectValidRoute()` if the user chooses to go "Back to Origin Selection" from the destination selection menu, the method calls itself to restart the origin selection.
+* **Hashing (Cryptographic):**
+    * **SHA-256:** Used in `UserManager.hashPassword()` for secure one-way hashing of passwords before storage. This is a cryptographic concept, not a typical DSA data structure, but an important algorithm used.
+
+## Setup & Running the Project
 
 **Prerequisites:**
 
-* Java Development Kit (JDK) installed (e.g., JDK 11 or newer).
-* A terminal or command prompt that supports ANSI escape codes for styled output (most modern terminals do).
+* Java Development Kit (JDK) installed (version 17 or newer recommended for records, but adaptable).
+* A terminal or command prompt that supports ANSI escape codes for styled output (e.g., Windows Terminal, PowerShell, macOS Terminal, most Linux terminals).
 
 **Compilation:**
 
-1.  Navigate to the `src` directory in your project (where the `TicketBookingSystem` package folder is located).
-2.  Compile all Java files:
+1.  Ensure all `.java` files are in a directory structure matching their package statement (e.g., `TicketBookingSystem` folder).
+2.  Navigate to the directory *containing* the `TicketBookingSystem` package folder in your terminal.
+3.  Compile all Java files:
     ```bash
     javac TicketBookingSystem/*.java
     ```
-    Alternatively, if your `.java` files are directly in `src` and the package statement is `package TicketBookingSystem;`, compile from the directory *above* `src`:
+    Or, to compile into a separate `out` directory (recommended):
     ```bash
-    javac src/TicketBookingSystem/*.java -d out
+    javac -d out src/TicketBookingSystem/*.java
     ```
-    (This command compiles files into an `out` directory, keeping source separate from compiled classes).
+    (Assuming your source files are in `src/TicketBookingSystem` and you are in the project root).
 
 **Running:**
 
-1.  Ensure the data files (`airports.txt`, `train_stations.txt`, `bus_stations.txt`, and initially empty or non-existent `users.txt`, `bookings.txt`) are in the correct execution directory.
-    * If you compiled into an `out` directory, place the data files in the parent directory (e.g., `D:\ticketbookings\` if `out` is `D:\ticketbookings\out`).
-    * If you compiled within `src`, place them in `src`. Generally, it's better to place data files outside the `src` folder.
-2.  From the directory containing the `TicketBookingSystem` compiled package (e.g., `out` or your project root if compiled directly):
+1.  Ensure the data files (`airports.txt`, `train_stations.txt`, `bus_stations.txt`) are present in the execution directory (usually the project root if running from there, or the directory where `TicketBookingSystem.Main.class` is located).
+2.  `users.txt` and `bookings.txt` will be created automatically in the execution directory if they don't exist.
+3.  From the directory where the compiled `TicketBookingSystem` package is accessible (e.g., from the project root if you used `-d out` above, then `cd out`):
     ```bash
     java TicketBookingSystem.Main
     ```
 
 **First Run & Admin Login:**
 
-* On the first run (or if `users.txt` is missing/empty), the application will attempt to create a default admin user:
-    * Username: `admin`
-    * Password: `admin`
-* To log in as admin, choose the "Login" option, and use these credentials.
+* On the very first run (or if `users.txt` is deleted/empty), the application will create a default admin user:
+    * **Username:** `admin`
+    * **Password:** `admin`
+* To log in as admin, select the "Login" option and use these credentials.
 
-**Note on Password Masking:**
-The password input masking (showing `*` or nothing) uses `java.io.Console.readPassword()`. This feature works reliably when the application is run from a standard system terminal (like Command Prompt on Windows, or Terminal on macOS/Linux). It may not work (and will fall back to visible password input) in some IDE-integrated consoles.
+**Password Masking Note:**
+Password input masking (not showing characters as they are typed) is handled by `java.io.Console.readPassword()`. This works best when running the application from a true system terminal. Many IDE-integrated consoles do not fully support this, and passwords might be visible during input in such environments (the system will fall back to standard input).
 
 ## Visual Styling
 
-The application uses ANSI escape codes (via the `Utils` class) to provide basic color and bolding to text in the console, enhancing readability and user experience. This includes:
-* Colored menu options and prompts.
-* Distinct colors for success, error, and warning messages.
+The application uses ANSI escape codes, managed via constants in the `Utils` class, to provide:
+* Colored text for menus, prompts, success messages, warnings, and errors.
+* Bolding for emphasis.
 * Styled banners for section titles.
-* Colored representation of available (`O`) and reserved (`X`) seats.
+* Colored indicators for seat availability (`O` vs `X`).
 
-## Potential Future Enhancements
-
-* More sophisticated and distinct seat layout configurations for different vehicle types and classes.
-* Management of actual vehicle instances rather than using "manager/template" objects.
-* Admin functions to add/modify/delete routes and vehicles directly through the dashboard.
-* More robust error handling and logging.
-* A graphical user interface (GUI) using Java Swing or JavaFX.
-* Use of a database (e.g., SQLite, H2, MySQL) for data persistence instead of text files for better scalability and data integrity.
-* Password salting for enhanced security.
-* Ability to book multiple seats in one transaction.
-* Search/filter functionality for routes.
+This enhances the command-line user interface's readability and visual appeal.
