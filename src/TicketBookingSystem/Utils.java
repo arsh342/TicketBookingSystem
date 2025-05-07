@@ -42,8 +42,8 @@ public class Utils {
     // --- Other Constants ---
     // Date Formatter for DD-MM-YYYY with strict validation
     private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("dd-MM-uuuu")
-                    .withResolverStyle(ResolverStyle.STRICT);
+            DateTimeFormatter.ofPattern("dd-MM-uuuu") // Use uuuu for year to avoid confusion with week-based year 'yyyy'
+                    .withResolverStyle(ResolverStyle.STRICT); // Ensures dates like 31-02-2025 are rejected
 
     // Allowed gender inputs (checked case-insensitively)
     private static final Set<String> VALID_GENDERS = new HashSet<>(Arrays.asList(
@@ -75,7 +75,7 @@ public class Utils {
 
     /**
      * Clears the console screen using ANSI escape codes.
-     * Note: May not work in all terminal emulators or IDEs.
+     * Note: May not work in all environments (like some IDE consoles).
      */
     public static void clearScreen() {
         System.out.print("\033[H\033[2J");
@@ -122,7 +122,7 @@ public class Utils {
     }
 
     /**
-     * Calculates base ticket price based on transport type and distance.
+     * Calculates base ticket price from distance and transport type.
      * Distance should be obtained from RouteDataManager.
      * @param transportType "Plane", "Train", or "Bus".
      * @param distance Distance in km (should be >= 0).
@@ -258,7 +258,7 @@ public class Utils {
                     case "M": standardizedGender = "Male"; break;
                     case "F": standardizedGender = "Female"; break;
                     case "O": standardizedGender = "Other"; break;
-                    // If user typed full word correctly (e.g., "Male"), use it directly
+                    // If user typed full word correctly (e.g., "Male"), use it directly after standardizing case
                     default: standardizedGender = genderInput.substring(0, 1).toUpperCase() + genderInput.substring(1).toLowerCase(); break;
                 }
             } else {
